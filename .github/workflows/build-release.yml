@@ -18,6 +18,12 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
 
+      - name: Defender-Ausnahme (app-builder.exe False-Positive)
+        # Windows Defender auf den Runnern quarantäniert app-builder.exe
+        # (bekannter False-Positive) -> ENOENT beim electron-builder.
+        run: Add-MpPreference -ExclusionPath "$env:GITHUB_WORKSPACE"
+        shell: powershell
+
       - name: Node.js einrichten
         uses: actions/setup-node@v4
         with:
