@@ -1,5 +1,8 @@
 appId: com.empiregameforge.app
 productName: Empire Game Forge AI
+# npm-Workspaces hoisten node_modules ins Root - Version daher explizit
+# (muss zur electron-Version im package-lock.json passen).
+electronVersion: 33.4.11
 directories:
   output: release
   buildResources: build
