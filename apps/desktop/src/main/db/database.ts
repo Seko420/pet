@@ -96,6 +96,18 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX idx_build_records_project ON build_records(project_id, at);
     `,
   },
+  {
+    version: 2,
+    sql: `
+      CREATE TABLE playtest_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        data TEXT NOT NULL
+      );
+      CREATE INDEX idx_playtests_project ON playtest_sessions(project_id, created_at);
+    `,
+  },
 ];
 
 export type Db = BetterSqlite3.Database;

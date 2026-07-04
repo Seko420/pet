@@ -19,6 +19,7 @@ import { MobileService } from './mobile';
 import { AgentService } from './agent';
 import { GitService } from './git';
 import { BuildService } from './build';
+import { PlaytestsService } from './playtests';
 
 export interface Services {
   db: Db;
@@ -41,6 +42,7 @@ export interface Services {
   agent: AgentService;
   git: GitService;
   build: BuildService;
+  playtests: PlaytestsService;
 }
 
 export function createServices(paths: { userDataPath: string; documentsPath: string }): Services {
@@ -63,6 +65,7 @@ export function createServices(paths: { userDataPath: string; documentsPath: str
   const agent = new AgentService(db, projects, files, ai);
   const git = new GitService(projects, ai);
   const build = new BuildService(db, projects, roblox);
+  const playtests = new PlaytestsService(db, projects, tasks);
 
   return {
     db,
@@ -85,6 +88,7 @@ export function createServices(paths: { userDataPath: string; documentsPath: str
     agent,
     git,
     build,
+    playtests,
   };
 }
 

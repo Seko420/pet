@@ -17,6 +17,8 @@ import { ContentView } from './screens/project/ContentView';
 import { AnalyticsView } from './screens/project/AnalyticsView';
 import { ChecklistsView } from './screens/project/ChecklistsView';
 import { ScoresView } from './screens/project/ScoresView';
+import { SimulatorView } from './screens/project/SimulatorView';
+import { PlaytestsView } from './screens/project/PlaytestsView';
 
 export default function App(): React.JSX.Element {
   return (
@@ -38,6 +40,8 @@ export default function App(): React.JSX.Element {
           <Route path="analytics" element={<AnalyticsView />} />
           <Route path="checklists" element={<ChecklistsView />} />
           <Route path="scores" element={<ScoresView />} />
+          <Route path="simulator" element={<SimulatorView />} />
+          <Route path="playtests" element={<PlaytestsView />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

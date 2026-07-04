@@ -25,6 +25,7 @@ export function RobloxView(): React.JSX.Element {
   const [confirmName, setConfirmName] = useState('');
   const [versionType, setVersionType] = useState<'Saved' | 'Published'>('Published');
   const [busy, setBusy] = useState<string | null>(null);
+  const [serveRunId, setServeRunId] = useState<string | null>(null);
 
   const load = useCallback((): void => {
     api
@@ -100,6 +101,22 @@ export function RobloxView(): React.JSX.Element {
     run('build', async () => {
       await api.invoke('build:run', { projectId: project.id, task: 'rojo_build' });
       setNote('Rojo-Build gestartet - Ausgabe in der Build-Konsole unten.');
+    });
+
+  const rojoServe = (): Promise<void> =>
+    run('serve', async () => {
+      const { runId } = await api.invoke('build:run', { projectId: project.id, task: 'rojo_serve' });
+      setServeRunId(runId);
+      setNote('Rojo-Serve läuft - im Roblox Studio das Rojo-Plugin verbinden (Port 34872).');
+    });
+
+  const stopServe = (): Promise<void> =>
+    run('stopserve', async () => {
+      if (serveRunId) {
+        await api.invoke('build:cancel', { runId: serveRunId });
+        setServeRunId(null);
+        setNote('Rojo-Serve gestoppt.');
+      }
     });
 
   const dryRun = (): Promise<void> =>
@@ -188,6 +205,15 @@ export function RobloxView(): React.JSX.Element {
               <button className="btn-secondary" onClick={() => void rojoBuild()} disabled={busy !== null}>
                 <Hammer className="h-4 w-4" /> Rojo Build starten
               </button>
+              {serveRunId === null ? (
+                <button className="btn-secondary" onClick={() => void rojoServe()} disabled={busy !== null} title="Live-Sync mit Roblox Studio">
+                  <PlugZap className="h-4 w-4" /> Rojo Serve starten
+                </button>
+              ) : (
+                <button className="btn-danger" onClick={() => void stopServe()} disabled={busy !== null}>
+                  Rojo Serve stoppen
+                </button>
+              )}
             </div>
             {validation ? (
               <div className="space-y-1 rounded-lg border border-ink-600 bg-ink-850 p-3">

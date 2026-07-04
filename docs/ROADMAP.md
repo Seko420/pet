@@ -7,13 +7,15 @@ Idea Lab, GDD-Generator (21 Sektionen), Qualitäts-/Marktpotenzial-Scores mit
 Verbesserungshebeln, Aufgabenboard, Content-Planer, Analytics-/LiveOps-Planer,
 Checklisten mit Pflicht-Gates, Code-Agent (Plan→Freigabe→Apply), Datei-Browser
 mit Monaco, Roblox-Modul (Luau/Rojo-Scaffold, Validierung, Open-Cloud-Adapter,
-Dry-Run + bestätigtes Publishing), Mobile-Modul (Godot-Scaffold, Budgets,
-Export-Anleitung), Secrets via safeStorage, Git-Integration (Status/Init/
-Commit-Vorschläge), Build-Konsole (rojo/godot).
+Dry-Run + bestätigtes Publishing, rojo serve Live-Sync), Mobile-Modul
+(Godot-Scaffold, Budgets, Export-Anleitung), Secrets via safeStorage,
+Git-Integration (Status/Init/Commit-Vorschläge), Build-Konsole (rojo/godot),
+Monetarisierungs-Simulator (Szenarien, Bandbreiten, Sensitivität),
+Playtest-Feedback-System (Sessions, Findings → Aufgaben).
 
 ## v0.2 — Roblox-Tiefe
 
-- [ ] Rojo `serve`-Integration mit Live-Status im UI
+- [x] Rojo `serve`-Integration mit Live-Status im UI
 - [ ] Open Cloud: DataStore-Browser (lesen/debuggen), MessagingService-Trigger
 - [ ] Luau-Statikanalyse (luau-lsp/selene als optionale Tools)
 - [ ] Game-Pass-/Developer-Product-Katalogverwaltung im Projekt
@@ -30,8 +32,8 @@ Commit-Vorschläge), Build-Konsole (rojo/godot).
 ## v0.4 — Studio-Intelligenz
 
 - [ ] Test-Agent (generiert und bewertet Testpläne, führt Checks aus)
-- [ ] Playtest-Feedback-System (Sessions erfassen, Findings → Aufgaben)
-- [ ] Monetarisierungs-Simulator (Szenarien: ARPDAU/Conversion-Annahmen, Sensitivität)
+- [x] Playtest-Feedback-System (Sessions erfassen, Findings → Aufgaben)
+- [x] Monetarisierungs-Simulator (Szenarien: ARPDAU/Conversion-Annahmen, Sensitivität)
 - [ ] Analytics-Event-Designer (eigene Events + Export als Implementierungs-Spec)
 - [ ] LiveOps-Kalender mit konkreten Terminen + Erinnerungen
 

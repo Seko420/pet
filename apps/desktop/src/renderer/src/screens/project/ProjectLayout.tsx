@@ -124,6 +124,8 @@ export function ProjectLayout(): React.JSX.Element {
           {wantsMobile ? <Tab to="mobile" label="Mobile" /> : null}
           <Tab to="content" label="Content" />
           <Tab to="analytics" label="Analytics" />
+          <Tab to="playtests" label="Playtests" />
+          <Tab to="simulator" label="Simulator" />
           <Tab to="checklists" label="Checklisten" />
           <Tab to="scores" label="Scores" />
         </nav>

@@ -1,5 +1,6 @@
 import { BrowserWindow, app, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { resolve, sep } from 'node:path';
+import { defaultScenarioForProject, simulateMonetization } from '@egf/core';
 import type { IpcChannel, IpcRequest, IpcResponse } from '../../shared/ipc';
 import type { Services } from '../services';
 
@@ -158,4 +159,22 @@ export function registerIpcHandlers(services: Services): void {
   });
   handle('build:run', (request) => services.build.run(request));
   handle('build:cancel', ({ runId }) => services.build.cancel(runId));
+
+  // ---------------------------------------------------------- monetization
+  handle('monetization:defaultScenario', ({ projectId }) =>
+    defaultScenarioForProject(services.projects.require(projectId)),
+  );
+  handle('monetization:simulate', (input) => simulateMonetization(input));
+
+  // ------------------------------------------------------------- playtests
+  handle('playtests:list', ({ projectId }) => services.playtests.listForProject(projectId));
+  handle('playtests:create', (input) => services.playtests.create(input));
+  handle('playtests:delete', ({ id }) => services.playtests.delete(id));
+  handle('playtests:addFinding', ({ sessionId, finding }) => services.playtests.addFinding(sessionId, finding));
+  handle('playtests:removeFinding', ({ sessionId, findingId }) =>
+    services.playtests.removeFinding(sessionId, findingId),
+  );
+  handle('playtests:convertFinding', ({ sessionId, findingId }) =>
+    services.playtests.convertFindingToTask(sessionId, findingId),
+  );
 }

@@ -23,7 +23,11 @@ import type {
   GddDocument,
   IdeaBrief,
   MobileProjectConfig,
+  MonetizationProjection,
+  MonetizationScenarioInput,
   NewProjectInput,
+  PlaytestFinding,
+  PlaytestSession,
   ProjectDashboardSummary,
   RobloxProjectConfig,
   ScoreEvaluation,
@@ -88,7 +92,7 @@ export interface CommitSuggestion {
 export interface BuildRequest {
   projectId: string;
   /** Which preconfigured task to run - never a free-form shell string. */
-  task: 'rojo_build' | 'rojo_sourcemap' | 'godot_check' | 'validate_project';
+  task: 'rojo_build' | 'rojo_sourcemap' | 'rojo_serve' | 'godot_check' | 'validate_project';
 }
 
 export interface BuildOutputEvent {
@@ -286,6 +290,25 @@ export interface IpcChannelMap {
 
   'build:run': { req: BuildRequest; res: { runId: string } };
   'build:cancel': { req: { runId: string }; res: void };
+
+  'monetization:defaultScenario': { req: { projectId: string }; res: MonetizationScenarioInput };
+  'monetization:simulate': { req: MonetizationScenarioInput; res: MonetizationProjection };
+
+  'playtests:list': { req: { projectId: string }; res: PlaytestSession[] };
+  'playtests:create': {
+    req: { projectId: string; title: string; playedAt: string; testerCount: number; buildLabel?: string; notes?: string };
+    res: PlaytestSession;
+  };
+  'playtests:delete': { req: { id: string }; res: void };
+  'playtests:addFinding': {
+    req: { sessionId: string; finding: Omit<PlaytestFinding, 'id' | 'convertedTaskId'> };
+    res: PlaytestSession;
+  };
+  'playtests:removeFinding': { req: { sessionId: string; findingId: string }; res: PlaytestSession };
+  'playtests:convertFinding': {
+    req: { sessionId: string; findingId: string };
+    res: { session: PlaytestSession; task: TaskItem };
+  };
 }
 
 export type IpcChannel = keyof IpcChannelMap;

@@ -9,6 +9,7 @@ import { ProjectsService } from '../projects';
 import { TasksService, ChecklistsService } from '../studio';
 import { FilesService } from '../files';
 import { RobloxService } from '../roblox';
+import { PlaytestsService } from '../playtests';
 import type { OpenCloudClient } from '@egf/roblox-kit';
 
 const fakeCipher: SecretsCipher = {
@@ -131,6 +132,32 @@ describe('files service (security)', () => {
     // Legitimate access works.
     files.write(project.id, 'notes/test.md', '# ok');
     expect(files.read(project.id, 'notes/test.md').content).toBe('# ok');
+  });
+});
+
+describe('playtests service', () => {
+  it('captures findings and converts them into linked board tasks exactly once', () => {
+    const project = projects.create(newProjectInput);
+    const tasks = new TasksService(db, projects);
+    const playtests = new PlaytestsService(db, projects, tasks);
+
+    const session = playtests.create({ projectId: project.id, title: 'Erster Test', playedAt: '2026-07-04', testerCount: 5 });
+    const withFinding = playtests.addFinding(session.id, {
+      category: 'confusion',
+      severity: 'high',
+      description: 'Tester fanden den Shop-Button nicht',
+      location: 'HUD',
+    });
+    expect(withFinding.findings).toHaveLength(1);
+
+    const findingId = withFinding.findings[0]!.id;
+    const { session: converted, task } = playtests.convertFindingToTask(session.id, findingId);
+    expect(converted.findings[0]!.convertedTaskId).toBe(task.id);
+    expect(task.category).toBe('ui_ux');
+    expect(task.priority).toBe('high');
+    expect(tasks.listForProject(project.id).some((t) => t.id === task.id)).toBe(true);
+    // Second conversion must be rejected.
+    expect(() => playtests.convertFindingToTask(session.id, findingId)).toThrow(/bereits/);
   });
 });
 

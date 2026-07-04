@@ -10,6 +10,7 @@ export * from './types/secrets';
 export * from './types/checklists';
 export * from './types/agent';
 export * from './types/content';
+export * from './types/playtest';
 
 // Utilities
 export * from './util/random';
@@ -22,3 +23,4 @@ export * from './scoring/index';
 export * from './checklists/index';
 export * from './analytics/index';
 export * from './tasks/index';
+export * from './monetization/index';

@@ -63,15 +63,20 @@ export class BuildService {
     let cwd: string;
     let installHint: string;
 
-    if (request.task === 'rojo_build' || request.task === 'rojo_sourcemap') {
+    if (request.task === 'rojo_build' || request.task === 'rojo_sourcemap' || request.task === 'rojo_serve') {
       const rojoPath = project.roblox?.rojoProjectPath;
       if (!rojoPath) throw new Error('Kein Rojo-Projekt vorhanden - zuerst im Roblox-Tab generieren.');
       command = 'rojo';
       args =
         request.task === 'rojo_build'
           ? ['build', '-o', `build/${project.slug}.rbxlx`]
-          : ['sourcemap', '-o', 'sourcemap.json'];
+          : request.task === 'rojo_serve'
+            ? ['serve']
+            : ['sourcemap', '-o', 'sourcemap.json'];
       cwd = rojoPath;
+      if (request.task === 'rojo_serve') {
+        emitInfo('Rojo-Serve läuft, bis du ihn stoppst - im Studio das Rojo-Plugin verbinden (Standard-Port 34872).');
+      }
       installHint = 'rojo wurde nicht gefunden. Installation: aftman install im Rojo-Projektordner (aftman: https://github.com/LPGhatguy/aftman) oder rojo.space/docs.';
     } else {
       const godotPath = project.mobile?.godotProjectPath;

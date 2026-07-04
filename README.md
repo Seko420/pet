@@ -19,10 +19,12 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 | **Aufgabenboard** | Kanban mit generiertem Aufgabenplan (MVP → Beta → Release), Kategorien, Prioritäten, Schätzungen |
 | **Code-Agent** | Projekt-Chat + Plan-Workflow: Ziel → Plan → betroffene Dateien → **deine Freigabe** → Anwendung → Zusammenfassung. Ändert nie blind. |
 | **Datei-Browser & Editor** | Projektbaum + Monaco-Editor (offline), Luau/GDScript/JSON/Markdown |
-| **Roblox-Modul** | Rojo-kompatibles Luau-Projekt generieren (DataStore mit Session-Lock, Economy, Shop, Quests, Leaderstats, Anti-Exploit, Server/Client-Trennung), Validierung, Open-Cloud-Anbindung (Universe/Place ID, API-Key verschlüsselt), Dry-Run + bestätigtes Publishing |
+| **Roblox-Modul** | Rojo-kompatibles Luau-Projekt generieren (DataStore mit Session-Lock, Economy, Shop, Quests, Leaderstats, Anti-Exploit, Server/Client-Trennung), Validierung, `rojo serve`-Live-Sync, Open-Cloud-Anbindung (Universe/Place ID, API-Key verschlüsselt), Dry-Run + bestätigtes Publishing |
 | **Mobile-Modul** | Godot-4-Projekt generieren (Touch-Steuerung, genre-spezifische Templates, Save-System, Analytics-Hooks, faire Monetarisierungs-Stubs), Performance-Budgets, Android-Export-Anleitung |
 | **Content-System** | Plant Charaktere, Items, Pets, Level, Quests, Bosse, Store-Assets — alles original, keine fremden IPs |
 | **Analytics & LiveOps** | Event-Katalog (Tutorial, Retention, Monetarisierung, Abbruchstellen), 12-Wochen-LiveOps-Kalender, A/B-Test-Ideen, Balancing-Notizen |
+| **Monetarisierungs-Simulator** | Szenarien mit Bandbreiten (pessimistisch/erwartet/optimistisch), Umsatzpfad-Breakdown, Plausibilitäts-Warnungen, Sensitivitäts-Hebel — ehrlich, ohne Umsatzversprechen |
+| **Playtest-Feedback** | Sessions und Findings erfassen (Bug, Verwirrung, Frustration, Begeisterung…), wichtige Findings mit einem Klick in Board-Aufgaben umwandeln |
 | **Checklisten** | Release, App-Store, Datenschutz, Roblox-Publishing, faire Monetarisierung — mit Pflicht-Gates |
 | **Secrets** | API-Keys (Roblox Open Cloud, Anthropic) verschlüsselt via OS-`safeStorage`, nie im Klartext, nie im Code |
 
