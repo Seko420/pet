@@ -27,8 +27,15 @@ portable:
 mac:
   icon: build/icon.png
   target:
-    - dmg
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  # Ad-hoc-signiert (kein Apple-Developer-Zertifikat noetig); Nutzer oeffnet
+  # die App beim ersten Mal per Rechtsklick -> Oeffnen.
+  identity: null
   category: public.app-category.developer-tools
+  artifactName: EmpireGameForge-${version}-${arch}.${ext}
 linux:
   icon: build/icon.png
   target:
