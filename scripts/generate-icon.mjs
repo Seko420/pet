@@ -47,9 +47,6 @@ for (let y = 0; y < SIZE; y++) {
 
 // --- white hammer silhouette (simple, bold, readable at 32px)
 const white = (x, y) => put(x, y, 250, 250, 255, 255);
-const fillRect = (x0, y0, x1, y1, fn = white) => {
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) fn(x, y);
-};
 const fillRoundRect = (x0, y0, x1, y1, r, fn = white) => {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {

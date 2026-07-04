@@ -72,10 +72,27 @@ export class TransferService {
     writeFileSync(filePath, JSON.stringify(bundle, null, 2), 'utf-8');
   }
 
+  /** Dialog-free export - used by the web mode for browser downloads. */
+  exportData(projectId: string): { fileName: string; json: string } {
+    const bundle = this.buildBundle(projectId);
+    return { fileName: `${bundle.project.slug}.egf.json`, json: JSON.stringify(bundle, null, 2) };
+  }
+
   importFromFile(filePath: string): GameProject {
+    let text: string;
+    try {
+      text = readFileSync(filePath, 'utf-8');
+    } catch {
+      throw new Error('Die Datei konnte nicht gelesen werden.');
+    }
+    return this.importData(text);
+  }
+
+  /** Dialog-free import - used by the web mode for browser uploads. */
+  importData(json: string): GameProject {
     let raw: unknown;
     try {
-      raw = JSON.parse(readFileSync(filePath, 'utf-8'));
+      raw = JSON.parse(json);
     } catch {
       throw new Error('Die Datei ist kein gültiges JSON.');
     }

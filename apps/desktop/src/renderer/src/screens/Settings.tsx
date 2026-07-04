@@ -265,7 +265,9 @@ export function Settings(): React.JSX.Element {
             <dt className="text-mist-400">Version</dt>
             <dd className="text-mist-200">{info.version}</dd>
             <dt className="text-mist-400">Plattform</dt>
-            <dd className="text-mist-200">{info.platform}</dd>
+            <dd className="text-mist-200">
+              {info.platform} · {info.mode === 'web' ? 'Web-Modus (Browser)' : 'Desktop-App'}
+            </dd>
             <dt className="text-mist-400">Datenbank</dt>
             <dd className="break-all font-mono text-xs text-mist-300">{info.dbPath}</dd>
             <dt className="text-mist-400">safeStorage</dt>

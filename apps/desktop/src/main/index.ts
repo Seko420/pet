@@ -1,6 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, safeStorage, shell } from 'electron';
 import { join } from 'node:path';
 import { createServices, disposeServices, type Services } from './services';
+import { createSafeStorageCipher } from './services/secrets';
 import { registerIpcHandlers } from './ipc/register';
 
 let services: Services | null = null;
@@ -42,10 +43,13 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   app.setAppUserModelId('com.empiregameforge.app');
 
-  services = createServices({
-    userDataPath: app.getPath('userData'),
-    documentsPath: app.getPath('documents'),
-  });
+  services = createServices(
+    {
+      userDataPath: app.getPath('userData'),
+      documentsPath: app.getPath('documents'),
+    },
+    createSafeStorageCipher(safeStorage),
+  );
   registerIpcHandlers(services);
 
   createWindow();

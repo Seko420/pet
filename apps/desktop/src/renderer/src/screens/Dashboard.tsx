@@ -96,8 +96,27 @@ export function Dashboard(): React.JSX.Element {
 
   const importProject = async (): Promise<void> => {
     try {
-      const project = await api.invoke('projects:import', undefined);
-      if (project) navigate(`/projects/${project.id}`);
+      if (api.mode === 'desktop') {
+        const project = await api.invoke('projects:import', undefined);
+        if (project) navigate(`/projects/${project.id}`);
+        return;
+      }
+      // Web mode: file upload instead of a native open dialog.
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          const json = await file.text();
+          const project = await api.invoke('projects:importData', { json });
+          navigate(`/projects/${project.id}`);
+        } catch (err) {
+          setError((err as Error).message);
+        }
+      };
+      input.click();
     } catch (err) {
       setError((err as Error).message);
     }

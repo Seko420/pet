@@ -46,6 +46,8 @@ import type {
 export interface AppInfo {
   version: string;
   platform: NodeJS.Platform;
+  /** 'desktop' = Electron app, 'web' = self-hosted browser mode. */
+  mode: 'desktop' | 'web';
   userDataPath: string;
   dbPath: string;
   safeStorageAvailable: boolean;
@@ -230,10 +232,13 @@ export interface IpcChannelMap {
   'projects:update': { req: { id: string; patch: Partial<GameProject> }; res: GameProject };
   'projects:delete': { req: { id: string }; res: void };
   'projects:scaffoldWorkspace': { req: { id: string }; res: { workspacePath: string } };
-  /** Export the full project bundle as JSON via save dialog; null = cancelled. */
+  /** Export the full project bundle as JSON via save dialog; null = cancelled (desktop). */
   'projects:export': { req: { id: string }; res: { path: string } | null };
-  /** Import a project bundle via open dialog; null = cancelled. */
+  /** Import a project bundle via open dialog; null = cancelled (desktop). */
   'projects:import': { req: undefined; res: GameProject | null };
+  /** Dialog-free variants (web mode: browser download/upload). */
+  'projects:exportData': { req: { id: string }; res: { fileName: string; json: string } };
+  'projects:importData': { req: { json: string }; res: GameProject };
 
   'ideas:generate': { req: IdeaBrief; res: GameIdea[] };
   'ideas:list': { req: undefined; res: GameIdea[] };

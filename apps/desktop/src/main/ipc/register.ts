@@ -1,22 +1,80 @@
 import { BrowserWindow, app, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { resolve, sep } from 'node:path';
-import { defaultScenarioForProject, simulateMonetization } from '@egf/core';
-import type { IpcChannel, IpcRequest, IpcResponse } from '../../shared/ipc';
+import type { IpcChannel } from '../../shared/ipc';
 import type { Services } from '../services';
+import { buildHandlers, type PlatformOps } from './handlers';
 
 /**
- * Registers every channel of the typed IPC contract.
- * The generic `handle` keeps request/response types compiler-checked against
- * shared/ipc.ts - a renderer/main drift becomes a build error, not a runtime bug.
+ * Desktop adapter: maps the shared handler map onto ipcMain and provides
+ * the Electron implementations of the platform-specific operations.
  */
 export function registerIpcHandlers(services: Services): void {
-  function handle<C extends IpcChannel>(
-    channel: C,
-    fn: (req: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>,
-  ): void {
-    ipcMain.handle(channel, async (_event, req: IpcRequest<C>) => {
+  const ops: PlatformOps = {
+    mode: 'desktop',
+    appVersion: () => app.getVersion(),
+    safeStorageAvailable: () => safeStorage.isEncryptionAvailable(),
+
+    async openPath(path) {
+      // Only app-managed directories may be opened from the renderer.
+      const allowedRoots = [
+        resolve(services.userDataPath),
+        resolve(services.documentsPath, 'EmpireGameForge'),
+      ];
+      const target = resolve(path);
+      const allowed = allowedRoots.some((root) => target === root || target.startsWith(root + sep));
+      if (!allowed) throw new Error('Dieser Pfad darf nicht geöffnet werden.');
+      const result = await shell.openPath(target);
+      if (result) throw new Error(`Ordner konnte nicht geöffnet werden: ${result}`);
+    },
+
+    async pickDirectory(title) {
+      const win = BrowserWindow.getFocusedWindow();
+      const options = { title: title ?? 'Ordner wählen', properties: ['openDirectory' as const] };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
+
+    async exportProjectDialog(projectId) {
+      const project = services.projects.require(projectId);
+      const win = BrowserWindow.getFocusedWindow();
+      const options = {
+        title: 'Projekt exportieren',
+        defaultPath: `${project.slug}.egf.json`,
+        filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
+      };
+      const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+      if (result.canceled || !result.filePath) return null;
+      services.transfer.exportToFile(projectId, result.filePath);
+      services.logger.info(`Projekt exportiert: ${project.slug}`);
+      return { path: result.filePath };
+    },
+
+    async importProjectDialog() {
+      const win = BrowserWindow.getFocusedWindow();
+      const options = {
+        title: 'Projekt importieren',
+        filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
+        properties: ['openFile' as const],
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      const filePath = result.filePaths[0];
+      if (result.canceled || !filePath) return null;
+      const project = services.transfer.importFromFile(filePath);
+      services.logger.info(`Projekt importiert: ${project.slug}`);
+      return project;
+    },
+
+    afterBackupRestore() {
+      app.relaunch();
+      app.exit(0);
+    },
+  };
+
+  const handlers = buildHandlers(services, ops);
+  for (const channel of Object.keys(handlers) as IpcChannel[]) {
+    ipcMain.handle(channel, async (_event, req: unknown) => {
       try {
-        return await fn(req);
+        return await (handlers[channel] as (r: unknown) => Promise<unknown>)(req);
       } catch (err) {
         // Log channel + message only - never payloads (they may reference secrets).
         services.logger.error(`ipc ${channel}: ${err instanceof Error ? err.message : String(err)}`);
@@ -25,198 +83,11 @@ export function registerIpcHandlers(services: Services): void {
     });
   }
 
-  // ------------------------------------------------------------------- app
-  handle('app:getInfo', () => ({
-    version: app.getVersion(),
-    platform: process.platform,
-    userDataPath: services.userDataPath,
-    dbPath: services.dbPath,
-    safeStorageAvailable: safeStorage.isEncryptionAvailable(),
-  }));
-
-  handle('app:openPath', async ({ path }) => {
-    // Only app-managed directories may be opened from the renderer.
-    const allowedRoots = [
-      resolve(services.userDataPath),
-      resolve(services.documentsPath, 'EmpireGameForge'),
-    ];
-    const target = resolve(path);
-    const allowed = allowedRoots.some((root) => target === root || target.startsWith(root + sep));
-    if (!allowed) throw new Error('Dieser Pfad darf nicht geöffnet werden.');
-    const result = await shell.openPath(target);
-    if (result) throw new Error(`Ordner konnte nicht geöffnet werden: ${result}`);
-  });
-
-  handle('app:pickDirectory', async ({ title }) => {
-    const win = BrowserWindow.getFocusedWindow();
-    const options = { title: title ?? 'Ordner wählen', properties: ['openDirectory' as const] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? null : (result.filePaths[0] ?? null);
-  });
-
-  handle('ai:status', () => services.ai.status());
-  handle('ai:getConfig', () => services.ai.getConfig());
-  handle('ai:setConfig', (config) => services.ai.setConfig(config));
-
-  // --------------------------------------------------------------- backups
-  handle('app:createBackup', () => services.backup.create());
-  handle('app:listBackups', () => services.backup.list());
-  handle('app:restoreBackup', ({ fileName }) => {
-    // Close the DB connection, replace the file, then relaunch clean.
-    services.logger.warn(`Backup-Wiederherstellung angefordert: ${fileName}`);
-    services.db.close();
-    services.backup.restoreAfterDbClosed(fileName);
-    app.relaunch();
-    app.exit(0);
-  });
-
-  // -------------------------------------------------------------- projects
-  handle('projects:list', () => services.projects.list());
-  handle('projects:dashboard', () => services.projects.dashboard());
-  handle('projects:get', ({ id }) => services.projects.get(id));
-  handle('projects:create', (input) => services.projects.create(input));
-  handle('projects:update', ({ id, patch }) => services.projects.update(id, patch));
-  handle('projects:delete', ({ id }) => services.projects.delete(id));
-  handle('projects:scaffoldWorkspace', ({ id }) => services.projects.scaffoldWorkspace(id));
-  handle('projects:export', async ({ id }) => {
-    const project = services.projects.require(id);
-    const win = BrowserWindow.getFocusedWindow();
-    const options = {
-      title: 'Projekt exportieren',
-      defaultPath: `${project.slug}.egf.json`,
-      filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
-    };
-    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
-    if (result.canceled || !result.filePath) return null;
-    services.transfer.exportToFile(id, result.filePath);
-    services.logger.info(`Projekt exportiert: ${project.slug}`);
-    return { path: result.filePath };
-  });
-  handle('projects:import', async () => {
-    const win = BrowserWindow.getFocusedWindow();
-    const options = {
-      title: 'Projekt importieren',
-      filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
-      properties: ['openFile' as const],
-    };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    const filePath = result.filePaths[0];
-    if (result.canceled || !filePath) return null;
-    const project = services.transfer.importFromFile(filePath);
-    services.logger.info(`Projekt importiert: ${project.slug}`);
-    return project;
-  });
-
-  // ----------------------------------------------------------------- ideas
-  handle('ideas:generate', (brief) => services.ideas.generate(brief));
-  handle('ideas:list', () => services.ideas.list());
-  handle('ideas:get', ({ id }) => services.ideas.get(id));
-  handle('ideas:save', (idea) => services.ideas.save(idea));
-  handle('ideas:delete', ({ id }) => services.ideas.delete(id));
-
-  // ------------------------------------------------------------------- gdd
-  handle('gdd:getForProject', ({ projectId }) => services.gdd.getForProject(projectId));
-  handle('gdd:generate', ({ projectId }) => services.gdd.generate(projectId));
-  handle('gdd:saveSection', ({ projectId, sectionId, markdown }) =>
-    services.gdd.saveSection(projectId, sectionId, markdown),
-  );
-  handle('gdd:exportMarkdown', ({ projectId }) => services.gdd.exportMarkdown(projectId));
-
-  // ----------------------------------------------------------------- tasks
-  handle('tasks:listForProject', ({ projectId }) => services.tasks.listForProject(projectId));
-  handle('tasks:create', (input) => services.tasks.create(input));
-  handle('tasks:update', (input) => services.tasks.update(input));
-  handle('tasks:delete', ({ id }) => services.tasks.delete(id));
-  handle('tasks:generateForProject', ({ projectId }) => services.tasks.generateForProject(projectId));
-
-  // ---------------------------------------------------------------- scores
-  handle('scores:evaluateProject', ({ projectId }) => services.scores.evaluateProject(projectId));
-
-  // --------------------------------------------------------------- content
-  handle('content:listForProject', ({ projectId }) => services.content.listForProject(projectId));
-  handle('content:generatePlan', ({ projectId }) => services.content.generatePlan(projectId));
-  handle('content:update', ({ id, patch }) => services.content.update(id, patch));
-  handle('content:delete', ({ id }) => services.content.delete(id));
-
-  // ------------------------------------------------------------- analytics
-  handle('analytics:getPlan', ({ projectId }) => services.analytics.getPlan(projectId));
-  handle('analytics:generatePlan', ({ projectId }) => services.analytics.generatePlan(projectId));
-
-  // ------------------------------------------------------------ checklists
-  handle('checklists:getForProject', ({ projectId }) => services.checklists.getForProject(projectId));
-  handle('checklists:toggleItem', ({ projectId, checklistKind, itemId, done }) =>
-    services.checklists.toggleItem(projectId, checklistKind, itemId, done),
-  );
-
-  // --------------------------------------------------------------- secrets
-  handle('secrets:list', () => services.secrets.list());
-  handle('secrets:set', ({ name, service, value }) => {
-    const ref = services.secrets.set(name, service, value);
-    services.ai.invalidate();
-    return ref;
-  });
-  handle('secrets:delete', ({ id }) => {
-    services.secrets.delete(id);
-    services.ai.invalidate();
-  });
-
-  // ---------------------------------------------------------------- roblox
-  handle('roblox:getConfig', ({ projectId }) => services.roblox.getConfig(projectId));
-  handle('roblox:saveConfig', ({ projectId, patch }) => services.roblox.saveConfig(projectId, patch));
-  handle('roblox:scaffold', ({ projectId }) => services.roblox.scaffold(projectId));
-  handle('roblox:validate', ({ projectId }) => services.roblox.validate(projectId));
-  handle('roblox:publish', (request) => services.roblox.publish(request));
-  handle('roblox:testConnection', ({ projectId }) => services.roblox.testConnection(projectId));
-
-  // ---------------------------------------------------------------- mobile
-  handle('mobile:getConfig', ({ projectId }) => services.mobile.getConfig(projectId));
-  handle('mobile:saveConfig', ({ projectId, patch }) => services.mobile.saveConfig(projectId, patch));
-  handle('mobile:scaffold', ({ projectId }) => services.mobile.scaffold(projectId));
-
-  // ----------------------------------------------------------------- files
-  handle('files:tree', ({ projectId }) => services.files.tree(projectId));
-  handle('files:read', ({ projectId, path }) => services.files.read(projectId, path));
-  handle('files:write', ({ projectId, path, content }) => services.files.write(projectId, path, content));
-
-  // ----------------------------------------------------------------- agent
-  handle('agent:history', ({ projectId }) => services.agent.history(projectId));
-  handle('agent:send', ({ projectId, message }) => services.agent.send(projectId, message));
-  handle('agent:plan', ({ projectId, goal }) => services.agent.plan(projectId, goal));
-  handle('agent:approveRun', ({ runId }) => services.agent.approveRun(runId));
-  handle('agent:rejectRun', ({ runId }) => services.agent.rejectRun(runId));
-  handle('agent:listRuns', ({ projectId }) => services.agent.listRuns(projectId));
-
-  // ------------------------------------------------------------------- git
-  handle('git:status', ({ projectId }) => services.git.status(projectId));
-  handle('git:init', ({ projectId }) => services.git.init(projectId));
-  handle('git:suggestCommit', ({ projectId }) => services.git.suggestCommit(projectId));
-  handle('git:commit', ({ projectId, message }) => services.git.commit(projectId, message));
-
-  // ----------------------------------------------------------------- build
+  // Build events: broadcast to all renderer windows.
   services.build.setSink((event) => {
     const channel = event.type === 'output' ? 'event:buildOutput' : 'event:buildExit';
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send(channel, event.payload);
     }
   });
-  handle('build:run', (request) => services.build.run(request));
-  handle('build:cancel', ({ runId }) => services.build.cancel(runId));
-
-  // ---------------------------------------------------------- monetization
-  handle('monetization:defaultScenario', ({ projectId }) =>
-    defaultScenarioForProject(services.projects.require(projectId)),
-  );
-  handle('monetization:simulate', (input) => simulateMonetization(input));
-
-  // ------------------------------------------------------------- playtests
-  handle('playtests:list', ({ projectId }) => services.playtests.listForProject(projectId));
-  handle('playtests:create', (input) => services.playtests.create(input));
-  handle('playtests:delete', ({ id }) => services.playtests.delete(id));
-  handle('playtests:addFinding', ({ sessionId, finding }) => services.playtests.addFinding(sessionId, finding));
-  handle('playtests:removeFinding', ({ sessionId, findingId }) =>
-    services.playtests.removeFinding(sessionId, findingId),
-  );
-  handle('playtests:convertFinding', ({ sessionId, findingId }) =>
-    services.playtests.convertFindingToTask(sessionId, findingId),
-  );
 }

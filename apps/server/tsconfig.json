@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "../desktop/src/main", "../desktop/src/shared"],
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}

@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### Web-Modus (private Browser-Variante)
+- Gleiche App als passwortgeschützter Server (`npm run web`): identische UI und Funktionen im Browser, HTTP-Bridge + Server-Sent Events statt Electron-IPC
+- Kanal-Dispatcher (`ipc/handlers.ts`) Electron-frei extrahiert — Desktop und Web teilen sich exakt denselben typisierten Vertrag (Funktionsparität zur Compile-Zeit)
+- Zugriffsschutz: HTTP Basic Auth (timing-sicher), Standard-Bind nur `127.0.0.1`, CSRF-Schutz, generiertes Passwort in `~/.empire-game-forge/web-config.json`
+- Secrets im Web-Modus über AES-256-GCM-Schlüsseldatei; Export/Import über Browser-Download/-Upload; Anleitung inkl. HTTPS/VPN-Setup in `docs/WEB.md`
+
 ### Produktreife & Eigenständigkeit
 - Flexible KI-Provider-Schicht mit Anbieter-Auswahl in den Einstellungen: Automatisch / Anthropic / OpenAI / eigene OpenAI-kompatible API (LM Studio, Ollama, OpenRouter…) / Mock — App bleibt ohne Key voll nutzbar
 - Backup-System: konsistente Datenbank-Snapshots (Online-Backup-API), Verwaltung + Ein-Klick-Wiederherstellung mit App-Neustart, automatische Aufbewahrung der letzten 20

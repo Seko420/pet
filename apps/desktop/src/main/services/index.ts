@@ -1,7 +1,6 @@
 import { join } from 'node:path';
-import { safeStorage } from 'electron';
 import { openDatabase, type Db } from '../db/database';
-import { SecretsService, createSafeStorageCipher } from './secrets';
+import { SecretsService, type SecretsCipher } from './secrets';
 import { AiService } from './ai';
 import { ProjectsService } from './projects';
 import {
@@ -53,14 +52,22 @@ export interface Services {
   logger: Logger;
 }
 
-export function createServices(paths: { userDataPath: string; documentsPath: string }): Services {
+/**
+ * Wires the full service graph. Electron-free by design: the secrets cipher
+ * is injected (desktop: safeStorage, web: AES key file, tests: fake) so the
+ * same backend powers the Electron app AND the self-hosted web mode.
+ */
+export function createServices(
+  paths: { userDataPath: string; documentsPath: string },
+  cipher: SecretsCipher,
+): Services {
   const dbPath = join(paths.userDataPath, 'empire-game-forge.sqlite');
   const logger = new Logger(paths.userDataPath);
   logger.info('Starte Services…');
   const db = openDatabase(dbPath);
 
   const settings = new SettingsService(db);
-  const secrets = new SecretsService(db, createSafeStorageCipher(safeStorage));
+  const secrets = new SecretsService(db, cipher);
   const ai = new AiService(secrets, settings);
   const projects = new ProjectsService(db, paths.documentsPath);
   const ideas = new IdeasService(db);

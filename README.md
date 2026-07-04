@@ -70,6 +70,8 @@ npm run dist        # Windows-Installer + portable EXE bauen (electron-builder)
 
 **Installierbare App bauen:** `npm run dist` erzeugt in `apps/desktop/release/` einen NSIS-Installer (`EmpireGameForge-Setup-<version>.exe`, mit Deinstallation) und eine portable EXE. Details, Versionierung, Icon und Datenpfade: [docs/RELEASE.md](docs/RELEASE.md).
 
+**Alternativ als private Web-App:** `npm run web` startet dieselbe App als passwortgeschützten Server (Standard: nur localhost) — gleiche UI, gleiche Funktionen, im Browser unter `http://localhost:8321`. Details und sichere Fernzugriff-Optionen: [docs/WEB.md](docs/WEB.md).
+
 **Wo deine Daten liegen:** Datenbank + Backups + Logs unter dem Electron-`userData`-Ordner (Windows: `%APPDATA%/empire-game-forge-ai/`), generierte Spielprojekte unter `Dokumente/EmpireGameForge/`. Ein Update oder eine Neuinstallation überschreibt deine Daten nicht.
 
 ### Optionale Werkzeuge für die Spiel-Workflows

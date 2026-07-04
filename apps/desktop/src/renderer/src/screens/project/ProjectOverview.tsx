@@ -45,8 +45,20 @@ export function ProjectOverview(): React.JSX.Element {
 
   const exportProject = async (): Promise<void> => {
     try {
-      const result = await api.invoke('projects:export', { id: project.id });
-      if (result) setNote(`Projekt exportiert: ${result.path}`);
+      if (api.mode === 'desktop') {
+        const result = await api.invoke('projects:export', { id: project.id });
+        if (result) setNote(`Projekt exportiert: ${result.path}`);
+      } else {
+        // Web mode: browser download instead of a native save dialog.
+        const { fileName, json } = await api.invoke('projects:exportData', { id: project.id });
+        const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+        setNote(`Projekt als Download exportiert: ${fileName}`);
+      }
     } catch (err) {
       setError((err as Error).message);
     }
@@ -114,9 +126,13 @@ export function ProjectOverview(): React.JSX.Element {
             <>
               <p className="text-sm text-mist-300">Alle generierten Dateien (Rojo/Godot/GDD-Exporte) liegen hier:</p>
               <code className="block break-all rounded bg-ink-950 px-2 py-1.5 text-xs text-mist-300">{project.workspacePath}</code>
-              <button className="btn-secondary" onClick={() => void openWorkspace()}>
-                <FolderOpen className="h-4 w-4" /> Im Dateimanager öffnen
-              </button>
+              {api.mode === 'desktop' ? (
+                <button className="btn-secondary" onClick={() => void openWorkspace()}>
+                  <FolderOpen className="h-4 w-4" /> Im Dateimanager öffnen
+                </button>
+              ) : (
+                <p className="text-xs text-mist-500">Web-Modus: Der Ordner liegt auf dem Server-Rechner unter diesem Pfad.</p>
+              )}
             </>
           ) : (
             <>
