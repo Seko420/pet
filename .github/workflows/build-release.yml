@@ -25,7 +25,10 @@ jobs:
           cache: npm
 
       - name: Abhängigkeiten installieren
-        run: npm ci
+        # npm install statt npm ci: das Lockfile wurde unter Linux erzeugt,
+        # npm ci lässt dann Windows-spezifische optionale Binärpakete
+        # (app-builder-bin) weg - install löst sie plattformgerecht auf.
+        run: npm install --no-audit --no-fund
 
       - name: Tests und Typecheck
         run: |
