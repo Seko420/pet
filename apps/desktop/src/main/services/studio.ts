@@ -10,7 +10,6 @@ import type {
   TaskItem,
 } from '@egf/core';
 import {
-  GDD_SECTION_TITLES,
   createId,
   evaluateConcept,
   gddToMarkdown,
