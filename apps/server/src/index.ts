@@ -159,8 +159,12 @@ const server = app.listen(port, host, () => {
   const shownHost = host === '0.0.0.0' ? 'localhost' : host;
   console.log('');
   console.log('  ⚒  Empire Game Forge AI — Web-Modus');
-  console.log(`  →  http://${shownHost}:${port}`);
-  console.log(`  →  Anmeldung: Benutzer "forge", Passwort in ${configPath}`);
+  console.log('');
+  console.log(`  1. Öffne im Browser:   http://${shownHost}:${port}`);
+  console.log('  2. Benutzername:       forge');
+  console.log(`  3. Passwort:           ${password}`);
+  console.log('');
+  console.log(`  (Passwort ändern: ${configPath})`);
   if (host !== '127.0.0.1') {
     console.log('  ⚠  Server ist nicht nur auf localhost gebunden - nur mit HTTPS-Reverse-Proxy betreiben!');
   }
