@@ -87,6 +87,17 @@ export interface LabeledScore {
   reason: string;
 }
 
+/**
+ * A file to be written into a generated game workspace.
+ * Generator packages (roblox-kit, mobile-kit) return these as pure data;
+ * only the Electron main process touches the filesystem.
+ */
+export interface ScaffoldFile {
+  /** Relative path inside the target project folder, using forward slashes. */
+  path: string;
+  content: string;
+}
+
 export const GENRE_LABELS: Record<Genre, string> = {
   simulator: 'Simulator',
   tycoon: 'Tycoon',

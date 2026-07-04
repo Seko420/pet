@@ -1,0 +1,28 @@
+appId: com.empiregameforge.app
+productName: Empire Game Forge AI
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - '**/*.node'
+win:
+  target:
+    - nsis
+  artifactName: EmpireGameForge-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Empire Game Forge AI
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+linux:
+  target:
+    - AppImage
+  category: Development
+npmRebuild: true
+publish: null

@@ -1,4 +1,29 @@
-import type { LabeledScore } from './common';
+import type {
+  Audience,
+  EffortLevel,
+  Genre,
+  LabeledScore,
+  MonetizationModel,
+  QualityTarget,
+  TargetPlatform,
+} from './common';
+
+/**
+ * Platform-agnostic profile of a game concept - the input every score
+ * evaluation works on. Both ideas and projects can be reduced to this.
+ */
+export interface ConceptProfile {
+  platform: TargetPlatform;
+  genre: Genre;
+  audience: Audience;
+  monetization: MonetizationModel[];
+  multiplayer: boolean;
+  effort: EffortLevel;
+  qualityTarget?: QualityTarget;
+  themeHints?: string;
+  /** Free-form signals such as 'pets', 'pvp', 'ugc', 'seasonal'. */
+  tags?: string[];
+}
 
 /**
  * The Quality & Market Potential system.
