@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-900 font-sans text-mist-100 antialiased;
+    font-size: 14px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-500;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-400;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl2 border border-ink-600 bg-ink-800 shadow-panel;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ink-500 bg-ink-850 px-3 py-2 text-sm text-mist-100 placeholder-mist-400 outline-none transition-colors focus:border-forge-500;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-forge-500 text-white hover:bg-forge-600 active:bg-forge-700;
+  }
+
+  .btn-secondary {
+    @apply btn border border-ink-500 bg-ink-700 text-mist-100 hover:bg-ink-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-bad/15 text-bad ring-1 ring-inset ring-bad/40 hover:bg-bad/25;
+  }
+
+  .btn-ghost {
+    @apply btn text-mist-300 hover:bg-ink-700 hover:text-mist-100;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium;
+  }
+}

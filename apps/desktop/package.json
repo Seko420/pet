@@ -1,0 +1,46 @@
+{
+  "name": "@egf/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Empire Game Forge AI - Desktop App",
+  "main": "out/main/index.js",
+  "author": "Empire Game Forge",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist": "electron-vite build && electron-builder --win --config electron-builder.yml",
+    "dist:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@egf/ai-kit": "*",
+    "@egf/core": "*",
+    "@egf/mobile-kit": "*",
+    "@egf/roblox-kit": "*",
+    "better-sqlite3": "^11.5.0",
+    "@monaco-editor/react": "^4.6.0",
+    "monaco-editor": "^0.52.0",
+    "lucide-react": "^0.454.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
