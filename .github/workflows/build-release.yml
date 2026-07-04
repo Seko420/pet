@@ -60,19 +60,12 @@ jobs:
           generate_release_notes: true
 
   build-macos:
-    # Jede Architektur wird auf NATIVER Hardware gebaut, damit die nativen
-    # Module (better-sqlite3) exakt zur Ziel-CPU passen:
-    #   macos-13  = Intel (x64)   ->  EmpireGameForge-Mac-Intel
-    #   macos-14  = Apple Silicon ->  EmpireGameForge-Mac-AppleChip
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-13
-            label: Intel
-          - runner: macos-14
-            label: AppleChip
-    runs-on: ${{ matrix.runner }}
+    # GitHubs Intel-Runner (macos-13) sind kaum noch verfuegbar. Wir bauen
+    # daher BEIDE Architekturen auf einem Apple-Silicon-Runner (macos-14) in
+    # GETRENNTEN Durchgaengen - so wird das native Modul (better-sqlite3) je
+    # Ziel-CPU korrekt gebaut (im Gegensatz zum fehlerhaften Ein-Durchgang-
+    # Dual-Build, der arm64-Binaries ins Intel-Paket legte).
+    runs-on: macos-14
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
@@ -86,13 +79,33 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm install --no-audit --no-fund
 
-      - name: macOS-App bauen (native Architektur)
-        run: npm run dist:mac -w apps/desktop
+      - name: Renderer bauen
+        run: npm run build -w apps/desktop
+
+      - name: Apple-Chip-DMG bauen (arm64)
+        working-directory: apps/desktop
+        run: npx electron-builder --mac dmg --arm64 --config electron-builder.yml
+
+      - name: Intel-DMG bauen (x64)
+        working-directory: apps/desktop
+        run: npx electron-builder --mac dmg --x64 --config electron-builder.yml
+
+      - name: Prüfen, dass eine echte Intel-Version (x86_64) entstanden ist
+        working-directory: apps/desktop
+        run: |
+          echo "Gefundene SQLite-Module:"
+          find release -name "better_sqlite3.node" -exec sh -c 'echo "-- $1"; file "$1"' _ {} \;
+          if find release -name "better_sqlite3.node" -exec file {} \; | grep -q "x86_64"; then
+            echo "OK: x86_64-Version vorhanden - Intel-Macs werden unterstuetzt."
+          else
+            echo "FEHLER: keine x86_64-Version des nativen Moduls - Intel-Build waere abgestuerzt."
+            exit 1
+          fi
 
       - name: Artefakt hochladen (Actions-Tab)
         uses: actions/upload-artifact@v4
         with:
-          name: EmpireGameForge-Mac-${{ matrix.label }}
+          name: EmpireGameForge-macOS
           path: |
             apps/desktop/release/*.dmg
           if-no-files-found: error
