@@ -60,7 +60,19 @@ jobs:
           generate_release_notes: true
 
   build-macos:
-    runs-on: macos-latest
+    # Jede Architektur wird auf NATIVER Hardware gebaut, damit die nativen
+    # Module (better-sqlite3) exakt zur Ziel-CPU passen:
+    #   macos-13  = Intel (x64)   ->  EmpireGameForge-Mac-Intel
+    #   macos-14  = Apple Silicon ->  EmpireGameForge-Mac-AppleChip
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            label: Intel
+          - runner: macos-14
+            label: AppleChip
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
@@ -74,13 +86,13 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm install --no-audit --no-fund
 
-      - name: macOS-App bauen (DMG, Apple Silicon)
+      - name: macOS-App bauen (native Architektur)
         run: npm run dist:mac -w apps/desktop
 
-      - name: Artefakte hochladen (Actions-Tab)
+      - name: Artefakt hochladen (Actions-Tab)
         uses: actions/upload-artifact@v4
         with:
-          name: EmpireGameForge-macOS
+          name: EmpireGameForge-Mac-${{ matrix.label }}
           path: |
             apps/desktop/release/*.dmg
           if-no-files-found: error

@@ -26,13 +26,12 @@ portable:
   artifactName: EmpireGameForge-Portable-${version}.${ext}
 mac:
   icon: build/icon.png
+  # Kein arch hier: jeder Runner baut seine NATIVE Architektur (Intel-Runner
+  # -> x64, Apple-Silicon-Runner -> arm64). So passen die nativen Module
+  # (better-sqlite3) garantiert zur Ziel-CPU - keine Cross-Kompilierung.
   target:
-    - target: dmg
-      arch:
-        - x64
-        - arm64
-  # Ad-hoc-signiert (kein Apple-Developer-Zertifikat noetig); Nutzer oeffnet
-  # die App beim ersten Mal per Rechtsklick -> Oeffnen.
+    - dmg
+  # Ad-hoc-signiert (kein Apple-Developer-Zertifikat noetig).
   identity: null
   category: public.app-category.developer-tools
   artifactName: EmpireGameForge-${version}-${arch}.${ext}
