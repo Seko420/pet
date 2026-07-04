@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, FileText, FolderOpen, ListTodo, Rocket, Smartphone } from 'lucide-react';
+import { BarChart3, FileDown, FileText, FolderOpen, ListTodo, Rocket, Smartphone } from 'lucide-react';
 import { AUDIENCE_LABELS, MONETIZATION_LABELS } from '@egf/core';
 import { api } from '../../lib/api';
 import { ART_STYLE_LABELS, formatDate } from '../../lib/labels';
@@ -43,6 +43,15 @@ export function ProjectOverview(): React.JSX.Element {
     }
   };
 
+  const exportProject = async (): Promise<void> => {
+    try {
+      const result = await api.invoke('projects:export', { id: project.id });
+      if (result) setNote(`Projekt exportiert: ${result.path}`);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const deleteProject = async (): Promise<void> => {
     try {
       await api.invoke('projects:delete', { id: project.id });
@@ -56,6 +65,7 @@ export function ProjectOverview(): React.JSX.Element {
     { icon: <FileText className="h-5 w-5" />, title: 'GDD ansehen', description: 'Design-Dokument lesen und bearbeiten', onClick: () => navigate('gdd') },
     { icon: <ListTodo className="h-5 w-5" />, title: 'Aufgaben', description: 'Kanban-Board mit Meilensteinen', onClick: () => navigate('tasks') },
     { icon: <BarChart3 className="h-5 w-5" />, title: 'Konzept neu bewerten', description: 'Scores + Verbesserungshebel aktualisieren', onClick: () => void reevaluate() },
+    { icon: <FileDown className="h-5 w-5" />, title: 'Projekt exportieren', description: 'Komplettes Paket als .egf.json sichern/teilen', onClick: () => void exportProject() },
     ...(project.platform !== 'mobile'
       ? [{ icon: <Rocket className="h-5 w-5" />, title: 'Roblox einrichten', description: 'Rojo-Projekt, IDs und Publishing', onClick: () => navigate('roblox') }]
       : []),

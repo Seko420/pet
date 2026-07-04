@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AiProviderError, createAnthropicProvider, createMockProvider, buildAgentPlanPrompt } from '../src/index';
+import {
+  AiProviderError,
+  createAnthropicProvider,
+  createMockProvider,
+  createOpenAiCompatibleProvider,
+  buildAgentPlanPrompt,
+} from '../src/index';
 
 const SECRET_KEY = 'sk-ant-test-geheim-1234567890';
 
@@ -62,6 +68,34 @@ describe('anthropic provider', () => {
       // The API key must never leak into error messages.
       expect(e.message).not.toContain(SECRET_KEY);
     }
+  });
+});
+
+describe('openai-compatible provider', () => {
+  it('maps success and auth errors, honoring a custom base url', async () => {
+    let capturedUrl = '';
+    const ok = createOpenAiCompatibleProvider({
+      apiKey: SECRET_KEY,
+      baseUrl: 'http://localhost:1234/v1/',
+      providerName: 'custom',
+      fetchFn: (async (...args: Parameters<typeof fetch>) => {
+        capturedUrl = String(args[0]);
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: 'Hi' } }], usage: { prompt_tokens: 3, completion_tokens: 1 } }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const result = await ok.complete({ messages: [{ role: 'user', content: 'Hallo' }] });
+    expect(result.text).toBe('Hi');
+    expect(result.provider).toBe('custom');
+    expect(capturedUrl).toBe('http://localhost:1234/v1/chat/completions');
+
+    const denied = createOpenAiCompatibleProvider({
+      apiKey: SECRET_KEY,
+      fetchFn: fakeFetch(401, {}),
+    });
+    await expect(denied.complete({ messages: [{ role: 'user', content: 'x' }] })).rejects.toMatchObject({ kind: 'auth' });
   });
 });
 

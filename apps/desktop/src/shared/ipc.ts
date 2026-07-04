@@ -52,10 +52,26 @@ export interface AppInfo {
 }
 
 export interface AiStatusInfo {
-  provider: 'mock' | 'anthropic';
+  provider: 'mock' | 'anthropic' | 'openai' | 'custom';
   configured: boolean;
   model: string;
   detail: string;
+}
+
+/** User-selectable AI provider configuration (stored in app settings). */
+export interface AiConfig {
+  provider: 'auto' | 'mock' | 'anthropic' | 'openai' | 'custom_ai';
+  /** Model override; null = provider default. */
+  model: string | null;
+  /** Base URL for OpenAI-compatible custom endpoints. */
+  customBaseUrl: string | null;
+}
+
+export interface BackupInfo {
+  fileName: string;
+  path: string;
+  createdAt: string;
+  sizeBytes: number;
 }
 
 export interface FileNode {
@@ -200,6 +216,12 @@ export interface IpcChannelMap {
   'app:pickDirectory': { req: { title?: string }; res: string | null };
 
   'ai:status': { req: undefined; res: AiStatusInfo };
+  'ai:getConfig': { req: undefined; res: AiConfig };
+  'ai:setConfig': { req: AiConfig; res: AiConfig };
+
+  'app:createBackup': { req: undefined; res: BackupInfo };
+  'app:listBackups': { req: undefined; res: BackupInfo[] };
+  'app:restoreBackup': { req: { fileName: string }; res: void };
 
   'projects:list': { req: undefined; res: GameProject[] };
   'projects:dashboard': { req: undefined; res: ProjectDashboardSummary[] };
@@ -208,6 +230,10 @@ export interface IpcChannelMap {
   'projects:update': { req: { id: string; patch: Partial<GameProject> }; res: GameProject };
   'projects:delete': { req: { id: string }; res: void };
   'projects:scaffoldWorkspace': { req: { id: string }; res: { workspacePath: string } };
+  /** Export the full project bundle as JSON via save dialog; null = cancelled. */
+  'projects:export': { req: { id: string }; res: { path: string } | null };
+  /** Import a project bundle via open dialog; null = cancelled. */
+  'projects:import': { req: undefined; res: GameProject | null };
 
   'ideas:generate': { req: IdeaBrief; res: GameIdea[] };
   'ideas:list': { req: undefined; res: GameIdea[] };

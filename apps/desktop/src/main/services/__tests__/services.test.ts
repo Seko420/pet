@@ -10,6 +10,9 @@ import { TasksService, ChecklistsService } from '../studio';
 import { FilesService } from '../files';
 import { RobloxService } from '../roblox';
 import { PlaytestsService } from '../playtests';
+import { TransferService } from '../transfer';
+import { SettingsService } from '../settings';
+import { AiService } from '../ai';
 import type { OpenCloudClient } from '@egf/roblox-kit';
 
 const fakeCipher: SecretsCipher = {
@@ -158,6 +161,65 @@ describe('playtests service', () => {
     expect(tasks.listForProject(project.id).some((t) => t.id === task.id)).toBe(true);
     // Second conversion must be rejected.
     expect(() => playtests.convertFindingToTask(session.id, findingId)).toThrow(/bereits/);
+  });
+});
+
+describe('transfer service (export/import)', () => {
+  it('roundtrips a full project bundle with remapped ids and reset machine-local state', () => {
+    const project = projects.create(newProjectInput);
+    const tasks = new TasksService(db, projects);
+    tasks.generateForProject(project.id);
+    const secrets = new SecretsService(db, fakeCipher);
+    const keyRef = secrets.set('Key', 'roblox_open_cloud', 'test-api-key-0001');
+    const roblox = new RobloxService(projects, secrets, () => ({ getUniverse: async (id) => ({ id, displayName: 'x' }), publishPlace: async () => ({ versionNumber: 1 }) }));
+    roblox.saveConfig(project.id, { universeId: '123', placeId: '456', apiKeySecretId: keyRef.id });
+
+    const transfer = new TransferService(db, projects);
+    const bundlePath = join(tempRoot, 'export.egf.json');
+    transfer.exportToFile(project.id, bundlePath);
+
+    const imported = transfer.importFromFile(bundlePath);
+    expect(imported.id).not.toBe(project.id);
+    expect(imported.name).toBe(project.name);
+    expect(imported.slug).not.toBe(project.slug); // collision-safe
+    // Machine-local state must not travel: key reference and paths reset.
+    expect(imported.roblox?.apiKeySecretId).toBeNull();
+    expect(imported.workspacePath).toBeNull();
+    // Universe/Place IDs stay (they are project facts, not machine facts).
+    expect(imported.roblox?.universeId).toBe('123');
+    const importedTasks = new TasksService(db, projects).listForProject(imported.id);
+    expect(importedTasks.length).toBeGreaterThan(20);
+    expect(importedTasks.every((t) => t.projectId === imported.id)).toBe(true);
+  });
+
+  it('rejects foreign or broken files with a clear error', () => {
+    const transfer = new TransferService(db, projects);
+    const badPath = join(tempRoot, 'bad.json');
+    writeFileSync(badPath, '{"kind":"something-else"}');
+    expect(() => transfer.importFromFile(badPath)).toThrow(/kein Empire-Game-Forge/);
+  });
+});
+
+describe('ai provider selection', () => {
+  it('resolves auto -> mock without keys, explicit provider with key, and honors mock override', async () => {
+    const secrets = new SecretsService(db, fakeCipher);
+    const settings = new SettingsService(db);
+    const ai = new AiService(secrets, settings);
+
+    expect((await ai.status()).provider).toBe('mock');
+
+    secrets.set('OpenAI', 'openai', 'sk-test-openai-123456');
+    ai.invalidate();
+    expect(ai.getProvider().name).toBe('openai');
+
+    ai.setConfig({ provider: 'mock', model: null, customBaseUrl: null });
+    expect(ai.getProvider().name).toBe('mock');
+
+    // custom_ai without base URL falls back to mock instead of crashing
+    ai.setConfig({ provider: 'custom_ai', model: 'llama3', customBaseUrl: null });
+    secrets.set('Custom', 'custom_ai', 'ck-test-123456');
+    ai.invalidate();
+    expect(ai.getProvider().name).toBe('mock');
   });
 });
 

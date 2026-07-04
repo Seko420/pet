@@ -9,18 +9,25 @@ files:
 asarUnpack:
   - '**/*.node'
 win:
+  icon: build/icon.png
   target:
     - nsis
-  artifactName: EmpireGameForge-Setup-${version}.${ext}
+    - portable
+  artifactName: EmpireGameForge-${version}-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   shortcutName: Empire Game Forge AI
+  artifactName: EmpireGameForge-Setup-${version}.${ext}
+portable:
+  artifactName: EmpireGameForge-Portable-${version}.${ext}
 mac:
+  icon: build/icon.png
   target:
     - dmg
   category: public.app-category.developer-tools
 linux:
+  icon: build/icon.png
   target:
     - AppImage
   category: Development

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Gamepad2, Lightbulb, Plus, XCircle } from 'lucide-react';
+import { CheckCircle2, FileUp, Gamepad2, Lightbulb, Plus, XCircle } from 'lucide-react';
 import type { ProjectDashboardSummary } from '@egf/core';
 import {
   GENRE_LABELS,
@@ -86,12 +86,22 @@ export function Dashboard(): React.JSX.Element {
   const [summaries, setSummaries] = useState<ProjectDashboardSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = (): void => {
     api
       .invoke('projects:dashboard', undefined)
       .then(setSummaries)
       .catch((err: Error) => setError(err.message));
-  }, []);
+  };
+  useEffect(load, []);
+
+  const importProject = async (): Promise<void> => {
+    try {
+      const project = await api.invoke('projects:import', undefined);
+      if (project) navigate(`/projects/${project.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -99,9 +109,14 @@ export function Dashboard(): React.JSX.Element {
         title="Studio-Dashboard"
         subtitle="Alle Spielprojekte auf einen Blick"
         actions={
-          <button className="btn-primary" onClick={() => navigate('/projects/new')}>
-            <Plus className="h-4 w-4" /> Neues Projekt
-          </button>
+          <>
+            <button className="btn-secondary" onClick={() => void importProject()} title="Projektpaket (.egf.json) importieren">
+              <FileUp className="h-4 w-4" /> Importieren
+            </button>
+            <button className="btn-primary" onClick={() => navigate('/projects/new')}>
+              <Plus className="h-4 w-4" /> Neues Projekt
+            </button>
+          </>
         }
       />
 

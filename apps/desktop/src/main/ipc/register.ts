@@ -19,7 +19,7 @@ export function registerIpcHandlers(services: Services): void {
         return await fn(req);
       } catch (err) {
         // Log channel + message only - never payloads (they may reference secrets).
-        console.error(`[ipc] ${channel} failed:`, err instanceof Error ? err.message : err);
+        services.logger.error(`ipc ${channel}: ${err instanceof Error ? err.message : String(err)}`);
         throw err;
       }
     });
@@ -55,6 +55,20 @@ export function registerIpcHandlers(services: Services): void {
   });
 
   handle('ai:status', () => services.ai.status());
+  handle('ai:getConfig', () => services.ai.getConfig());
+  handle('ai:setConfig', (config) => services.ai.setConfig(config));
+
+  // --------------------------------------------------------------- backups
+  handle('app:createBackup', () => services.backup.create());
+  handle('app:listBackups', () => services.backup.list());
+  handle('app:restoreBackup', ({ fileName }) => {
+    // Close the DB connection, replace the file, then relaunch clean.
+    services.logger.warn(`Backup-Wiederherstellung angefordert: ${fileName}`);
+    services.db.close();
+    services.backup.restoreAfterDbClosed(fileName);
+    app.relaunch();
+    app.exit(0);
+  });
 
   // -------------------------------------------------------------- projects
   handle('projects:list', () => services.projects.list());
@@ -64,6 +78,34 @@ export function registerIpcHandlers(services: Services): void {
   handle('projects:update', ({ id, patch }) => services.projects.update(id, patch));
   handle('projects:delete', ({ id }) => services.projects.delete(id));
   handle('projects:scaffoldWorkspace', ({ id }) => services.projects.scaffoldWorkspace(id));
+  handle('projects:export', async ({ id }) => {
+    const project = services.projects.require(id);
+    const win = BrowserWindow.getFocusedWindow();
+    const options = {
+      title: 'Projekt exportieren',
+      defaultPath: `${project.slug}.egf.json`,
+      filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
+    };
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return null;
+    services.transfer.exportToFile(id, result.filePath);
+    services.logger.info(`Projekt exportiert: ${project.slug}`);
+    return { path: result.filePath };
+  });
+  handle('projects:import', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const options = {
+      title: 'Projekt importieren',
+      filters: [{ name: 'Empire Game Forge Projekt', extensions: ['json'] }],
+      properties: ['openFile' as const],
+    };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const filePath = result.filePaths[0];
+    if (result.canceled || !filePath) return null;
+    const project = services.transfer.importFromFile(filePath);
+    services.logger.info(`Projekt importiert: ${project.slug}`);
+    return project;
+  });
 
   // ----------------------------------------------------------------- ideas
   handle('ideas:generate', (brief) => services.ideas.generate(brief));

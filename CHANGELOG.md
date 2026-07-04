@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### Produktreife & Eigenständigkeit
+- Flexible KI-Provider-Schicht mit Anbieter-Auswahl in den Einstellungen: Automatisch / Anthropic / OpenAI / eigene OpenAI-kompatible API (LM Studio, Ollama, OpenRouter…) / Mock — App bleibt ohne Key voll nutzbar
+- Backup-System: konsistente Datenbank-Snapshots (Online-Backup-API), Verwaltung + Ein-Klick-Wiederherstellung mit App-Neustart, automatische Aufbewahrung der letzten 20
+- Projekt-Export/-Import als `.egf.json`-Paket (GDD, Aufgaben, Content, Analytics, Checklisten-Stand, Playtests) mit ID-Remapping; API-Key-Referenzen und lokale Pfade wandern bewusst nicht mit
+- App-Icon (generiert via `scripts/generate-icon.mjs`), Windows-Build als NSIS-Installer **und** portable EXE
+- Datei-Logging (`<userData>/logs/main.log`, rotierend) für alle IPC-Fehler und Kernereignisse
+- Release-Anleitung (`docs/RELEASE.md`): Build, Versionierung, Datenpfade, Deinstallation, Auto-Update-Vorbereitung, Signierung
+
 ### Studio-Kern
 - Desktop-App-Grundgerüst (Electron + electron-vite + React + TypeScript + Tailwind, npm-Workspaces-Monorepo)
 - Dashboard mit Projektkarten: Status, Genre, Plattform, Monetarisierung, Fortschritt, Roblox-Verbindung, letzte Builds/Tests, Marktpotenzial-Score

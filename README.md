@@ -28,7 +28,19 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 | **Checklisten** | Release, App-Store, Datenschutz, Roblox-Publishing, faire Monetarisierung — mit Pflicht-Gates |
 | **Secrets** | API-Keys (Roblox Open Cloud, Anthropic) verschlüsselt via OS-`safeStorage`, nie im Klartext, nie im Code |
 
-**KI-Anbindung:** Alle Generatoren funktionieren offline über deterministische Engines (Templates + Heuristiken). Mit einem Anthropic-API-Key (Einstellungen → API-Schlüssel) werden Ideen-Verfeinerung, Code-Agent-Pläne und Commit-Vorschläge durch echte KI-Antworten ersetzt. Ohne Key zeigt die App ehrlich den Mock-Modus an.
+**KI-Anbindung (Provider-Schicht):** Alle Generatoren funktionieren offline über deterministische Engines (Templates + Heuristiken). Optional wählst du in den Einstellungen einen KI-Anbieter — **Anthropic (Claude)**, **OpenAI** oder eine **eigene OpenAI-kompatible API** (LM Studio, Ollama, OpenRouter…) — und hinterlegst den passenden Key. Damit werden Ideen-Verfeinerung, Code-Agent-Pläne und Commit-Vorschläge durch echte KI ersetzt. Ohne Key zeigt die App ehrlich den Mock-Modus an; neue Anbieter sind über das `AiProvider`-Interface in `packages/ai-kit` mit einer Factory anschließbar.
+
+### Funktionsstatus (ehrlich)
+
+| Bereich | Status |
+| --- | --- |
+| Projekte, Ideen, GDD, Aufgaben, Content, Analytics, Checklisten, Scores, Simulator, Playtests | **Implementiert** (offline, deterministisch) |
+| Roblox: Rojo/Luau-Scaffold, Validierung, rojo build/serve, Open-Cloud-Publishing mit Gates | **Implementiert** (Publishing braucht eigenen API-Key; rojo/Studio lokal installiert) |
+| Mobile: Godot-Projektgenerator, Budgets, Export-Anleitung | **Implementiert** (Android-Export läuft über den Godot-Editor) |
+| Secrets (safeStorage), Backups, Projekt-Export/-Import, Logs | **Implementiert** |
+| KI-Features (Chat, Agent-Pläne, Ideen-Verfeinerung, Commit-Vorschläge) | **Implementiert mit Key** / **Mock-Modus ohne Key** |
+| Automatisierte Android-Build-Pipeline, DataStore-Browser, Asset-Manager mit Vorschau | **Späterer Ausbau** (Roadmap, Adapter-Schnitte vorhanden) |
+| Auto-Updates, Code-Signierung, Team-Features/Cloud-Sync | **Vorbereitet** (Architektur ausgelegt, siehe docs/RELEASE.md) |
 
 ---
 
@@ -53,8 +65,12 @@ Weitere Kommandos:
 npm run typecheck   # TypeScript über alle Workspaces
 npm test            # Unit-Tests (Vitest) für alle Engines
 npm run build       # Produktions-Bundle (electron-vite)
-npm run dist        # Windows-Installer bauen (electron-builder)
+npm run dist        # Windows-Installer + portable EXE bauen (electron-builder)
 ```
+
+**Installierbare App bauen:** `npm run dist` erzeugt in `apps/desktop/release/` einen NSIS-Installer (`EmpireGameForge-Setup-<version>.exe`, mit Deinstallation) und eine portable EXE. Details, Versionierung, Icon und Datenpfade: [docs/RELEASE.md](docs/RELEASE.md).
+
+**Wo deine Daten liegen:** Datenbank + Backups + Logs unter dem Electron-`userData`-Ordner (Windows: `%APPDATA%/empire-game-forge-ai/`), generierte Spielprojekte unter `Dokumente/EmpireGameForge/`. Ein Update oder eine Neuinstallation überschreibt deine Daten nicht.
 
 ### Optionale Werkzeuge für die Spiel-Workflows
 

@@ -20,6 +20,10 @@ import { AgentService } from './agent';
 import { GitService } from './git';
 import { BuildService } from './build';
 import { PlaytestsService } from './playtests';
+import { SettingsService } from './settings';
+import { BackupService } from './backup';
+import { TransferService } from './transfer';
+import { Logger } from './logger';
 
 export interface Services {
   db: Db;
@@ -43,14 +47,21 @@ export interface Services {
   git: GitService;
   build: BuildService;
   playtests: PlaytestsService;
+  settings: SettingsService;
+  backup: BackupService;
+  transfer: TransferService;
+  logger: Logger;
 }
 
 export function createServices(paths: { userDataPath: string; documentsPath: string }): Services {
   const dbPath = join(paths.userDataPath, 'empire-game-forge.sqlite');
+  const logger = new Logger(paths.userDataPath);
+  logger.info('Starte Services…');
   const db = openDatabase(dbPath);
 
+  const settings = new SettingsService(db);
   const secrets = new SecretsService(db, createSafeStorageCipher(safeStorage));
-  const ai = new AiService(secrets);
+  const ai = new AiService(secrets, settings);
   const projects = new ProjectsService(db, paths.documentsPath);
   const ideas = new IdeasService(db);
   const gdd = new GddService(db, projects, ideas, paths.documentsPath);
@@ -66,6 +77,9 @@ export function createServices(paths: { userDataPath: string; documentsPath: str
   const git = new GitService(projects, ai);
   const build = new BuildService(db, projects, roblox);
   const playtests = new PlaytestsService(db, projects, tasks);
+  const backup = new BackupService(db, dbPath, paths.userDataPath, logger);
+  const transfer = new TransferService(db, projects);
+  logger.info('Alle Services bereit.');
 
   return {
     db,
@@ -89,6 +103,10 @@ export function createServices(paths: { userDataPath: string; documentsPath: str
     git,
     build,
     playtests,
+    settings,
+    backup,
+    transfer,
+    logger,
   };
 }
 
