@@ -68,12 +68,12 @@ export function createServices(
 
   const settings = new SettingsService(db);
   const secrets = new SecretsService(db, cipher);
-  const ai = new AiService(secrets, settings);
+  const ai = new AiService(secrets, settings, db);
   const projects = new ProjectsService(db, paths.documentsPath);
-  const ideas = new IdeasService(db);
-  const gdd = new GddService(db, projects, ideas, paths.documentsPath);
-  const tasks = new TasksService(db, projects);
-  const scores = new ScoresService(projects);
+  const ideas = new IdeasService(db, ai);
+  const gdd = new GddService(db, projects, ideas, paths.documentsPath, ai);
+  const tasks = new TasksService(db, projects, ai);
+  const scores = new ScoresService(projects, db, ai);
   const content = new ContentService(db, projects);
   const analytics = new AnalyticsService(db, projects);
   const checklists = new ChecklistsService(db, projects);

@@ -117,6 +117,26 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    version: 4,
+    sql: `
+      CREATE TABLE ai_request_log (
+        id TEXT PRIMARY KEY,
+        at TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        ok INTEGER NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        error TEXT
+      );
+      CREATE TABLE ai_reviews (
+        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+        at TEXT NOT NULL,
+        data TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export type Db = BetterSqlite3.Database;

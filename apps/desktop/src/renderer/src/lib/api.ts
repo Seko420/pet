@@ -32,7 +32,7 @@ function createHttpBridge(): EgfBridge {
   const ensureEventSource = (): void => {
     if (eventSource) return;
     eventSource = new EventSource('/api/events');
-    for (const eventName of ['event:buildOutput', 'event:buildExit']) {
+    for (const eventName of ['event:buildOutput', 'event:buildExit', 'event:aiChunk', 'event:aiDone']) {
       eventSource.addEventListener(eventName, (message) => {
         const payload = JSON.parse((message as MessageEvent).data as string) as unknown;
         for (const listener of listeners.get(eventName) ?? []) listener(payload);

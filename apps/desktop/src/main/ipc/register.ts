@@ -83,11 +83,16 @@ export function registerIpcHandlers(services: Services): void {
     });
   }
 
-  // Build events: broadcast to all renderer windows.
-  services.build.setSink((event) => {
-    const channel = event.type === 'output' ? 'event:buildOutput' : 'event:buildExit';
+  // Build + AI-stream events: broadcast to all renderer windows.
+  const broadcast = (channel: string, payload: unknown): void => {
     for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send(channel, event.payload);
+      win.webContents.send(channel, payload);
     }
+  };
+  services.build.setSink((event) => {
+    broadcast(event.type === 'output' ? 'event:buildOutput' : 'event:buildExit', event.payload);
+  });
+  services.agent.setSink((event) => {
+    broadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
   });
 }

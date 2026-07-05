@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, ListPlus, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ListPlus, Plus, Sparkles, Trash2 } from 'lucide-react';
 import type { TaskCategory, TaskItem, TaskPriority, TaskStatus } from '@egf/core';
 import { TASK_CATEGORY_LABELS } from '@egf/core';
 import { api } from '../../lib/api';
@@ -152,6 +152,20 @@ export function TaskBoard(): React.JSX.Element {
     }
   };
 
+  const aiPlan = async (): Promise<void> => {
+    if (!window.confirm('KI-Aufgabenplanung starten? Die KI schlägt neue Aufgaben passend zum Projektstand vor (verursacht bei Cloud-Anbietern API-Kosten).')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await api.invoke('tasks:aiPlan', { projectId: project.id });
+      setTasks(next);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const createTask = async (): Promise<void> => {
     try {
       await api.invoke('tasks:create', {
@@ -185,6 +199,9 @@ export function TaskBoard(): React.JSX.Element {
           <>
             <button className="btn-secondary" onClick={() => void generatePlan()} disabled={busy} title="Ergänzt fehlende Standard-Aufgaben für Plattform und Genre">
               <ListPlus className="h-4 w-4" /> {busy ? 'Generiere…' : 'Aufgabenplan generieren'}
+            </button>
+            <button className="btn-secondary" onClick={() => void aiPlan()} disabled={busy} title="Die KI schlägt neue Aufgaben passend zum aktuellen Projektstand vor (KI-Schlüssel nötig)">
+              <Sparkles className="h-4 w-4" /> KI-Aufgaben
             </button>
             <button className="btn-primary" onClick={() => setShowNewForm((s) => !s)}>
               <Plus className="h-4 w-4" /> Neue Aufgabe

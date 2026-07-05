@@ -62,6 +62,7 @@ function IdeaCard({
         <div>
           <h3 className="text-base font-semibold text-mist-50">{idea.title}</h3>
           <div className="mt-1 flex flex-wrap gap-1.5">
+            {idea.source === 'ai' ? <Badge tone="good">✨ KI</Badge> : null}
             <Badge tone="accent">{GENRE_LABELS[idea.genre]}</Badge>
             <Badge>{idea.platform === 'both' ? 'Roblox + Mobile' : idea.platform === 'roblox' ? 'Roblox' : 'Mobile'}</Badge>
             <Badge>{AUDIENCE_LABELS[idea.audience]}</Badge>
@@ -189,6 +190,8 @@ export function IdeaLab(): React.JSX.Element {
   const [seed, setSeed] = useState('');
 
   const [generating, setGenerating] = useState(false);
+  const [useAi, setUseAi] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
   const [results, setResults] = useState<GameIdea[]>([]);
   const [savedIdeas, setSavedIdeas] = useState<GameIdea[] | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -198,6 +201,12 @@ export function IdeaLab(): React.JSX.Element {
     api.invoke('ideas:list', undefined).then(setSavedIdeas).catch((err: Error) => setError(err.message));
   };
   useEffect(refreshSaved, []);
+  useEffect(() => {
+    api
+      .invoke('ai:status', undefined)
+      .then((status) => setAiConfigured(status.configured))
+      .catch(() => setAiConfigured(false));
+  }, []);
 
   const generate = async (): Promise<void> => {
     setGenerating(true);
@@ -213,6 +222,7 @@ export function IdeaLab(): React.JSX.Element {
         themeHints: themeHints.trim() || undefined,
         count,
         seed: seed.trim() ? Number(seed.trim()) : undefined,
+        useAi: useAi && aiConfigured,
       };
       const ideas = await api.invoke('ideas:generate', brief);
       setResults([...ideas].sort((a, b) => b.scores.overall - a.scores.overall));
@@ -333,10 +343,24 @@ export function IdeaLab(): React.JSX.Element {
           <Field label="Seed" hint="Gleicher Seed = gleiche Ideen">
             <input className="input w-32" value={seed} onChange={(e) => setSeed(e.target.value.replace(/\D/g, ''))} placeholder="optional" />
           </Field>
-          <button className="btn-primary ml-auto" onClick={generate} disabled={generating}>
-            <Flame className="h-4 w-4" />
-            {generating ? 'Die Schmiede glüht…' : 'Ideen generieren'}
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            {aiConfigured ? (
+              <button
+                type="button"
+                onClick={() => setUseAi((v) => !v)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  useAi ? 'bg-good/20 text-good ring-1 ring-inset ring-good/40' : 'bg-ink-700 text-mist-300 hover:bg-ink-600'
+                }`}
+                title="Echte KI-Ideen statt der Offline-Engine (verursacht API-Kosten bei Cloud-Anbietern)"
+              >
+                ✨ Echte KI {useAi ? 'AN' : 'aus'}
+              </button>
+            ) : null}
+            <button className="btn-primary" onClick={generate} disabled={generating}>
+              <Flame className="h-4 w-4" />
+              {generating ? (useAi && aiConfigured ? 'KI denkt nach…' : 'Die Schmiede glüht…') : 'Ideen generieren'}
+            </button>
+          </div>
         </div>
       </Card>
 

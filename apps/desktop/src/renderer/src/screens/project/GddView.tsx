@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download, FileText, Pencil, RefreshCw } from 'lucide-react';
+import { Download, FileText, Pencil, RefreshCw, Sparkles } from 'lucide-react';
 import type { GddDocument, GddSectionId } from '@egf/core';
 import { GDD_SECTION_TITLES } from '@egf/core';
 import { api } from '../../lib/api';
@@ -154,6 +154,23 @@ export function GddView(): React.JSX.Element {
     }
   };
 
+  const improveSection = async (): Promise<void> => {
+    if (doc === 'loading' || !doc) return;
+    if (!window.confirm('Diese Sektion mit KI überarbeiten? Der aktuelle Text der Sektion wird ersetzt (verursacht bei Cloud-Anbietern API-Kosten).')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.invoke('gdd:improveSection', { projectId: project.id, sectionId: activeId });
+      setDoc(updated);
+      setNote('Sektion mit KI überarbeitet.');
+      setEditing(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (doc === 'loading') return <Spinner label="Lade GDD…" />;
 
   if (!doc) {
@@ -222,15 +239,20 @@ export function GddView(): React.JSX.Element {
           <div className="mb-3 flex items-center justify-between gap-2 border-b border-ink-600 pb-3">
             <h3 className="text-lg font-semibold text-mist-50">{activeSection ? GDD_SECTION_TITLES[activeSection.id] : ''}</h3>
             {!editing ? (
-              <button
-                className="btn-ghost"
-                onClick={() => {
-                  setDraft(activeSection?.markdown ?? '');
-                  setEditing(true);
-                }}
-              >
-                <Pencil className="h-4 w-4" /> Bearbeiten
-              </button>
+              <div className="flex gap-1">
+                <button className="btn-ghost" onClick={() => void improveSection()} disabled={busy} title="Sektion durch die konfigurierte KI verbessern lassen">
+                  <Sparkles className="h-4 w-4" /> {busy ? 'KI arbeitet…' : 'Mit KI verbessern'}
+                </button>
+                <button
+                  className="btn-ghost"
+                  onClick={() => {
+                    setDraft(activeSection?.markdown ?? '');
+                    setEditing(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" /> Bearbeiten
+                </button>
+              </div>
             ) : null}
           </div>
           {editing ? (

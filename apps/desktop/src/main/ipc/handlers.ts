@@ -55,6 +55,8 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     'ai:status': () => services.ai.status(),
     'ai:getConfig': () => services.ai.getConfig(),
     'ai:setConfig': (config) => services.ai.setConfig(config),
+    'ai:testConnection': () => services.ai.testConnection(),
+    'ai:abort': ({ requestId }) => services.agent.abort(requestId),
 
     // ------------------------------------------------------------- projects
     'projects:list': () => services.projects.list(),
@@ -81,6 +83,7 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     'gdd:generate': ({ projectId }) => services.gdd.generate(projectId),
     'gdd:saveSection': ({ projectId, sectionId, markdown }) =>
       services.gdd.saveSection(projectId, sectionId, markdown),
+    'gdd:improveSection': ({ projectId, sectionId }) => services.gdd.improveSection(projectId, sectionId),
     'gdd:exportMarkdown': ({ projectId }) => services.gdd.exportMarkdown(projectId),
 
     // ---------------------------------------------------------------- tasks
@@ -89,8 +92,11 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     'tasks:update': (input) => services.tasks.update(input),
     'tasks:delete': ({ id }) => services.tasks.delete(id),
     'tasks:generateForProject': ({ projectId }) => services.tasks.generateForProject(projectId),
+    'tasks:aiPlan': ({ projectId, goal }) => services.tasks.aiPlan(projectId, goal),
 
     'scores:evaluateProject': ({ projectId }) => services.scores.evaluateProject(projectId),
+    'scores:aiReview': ({ projectId }) => services.scores.aiReview(projectId),
+    'scores:getAiReview': ({ projectId }) => services.scores.getAiReview(projectId),
 
     // -------------------------------------------------------------- content
     'content:listForProject': ({ projectId }) => services.content.listForProject(projectId),
@@ -138,6 +144,7 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     // ---------------------------------------------------------------- agent
     'agent:history': ({ projectId }) => services.agent.history(projectId),
     'agent:send': ({ projectId, message }) => services.agent.send(projectId, message),
+    'agent:sendStream': ({ projectId, message }) => services.agent.sendStream(projectId, message),
     'agent:plan': ({ projectId, goal }) => services.agent.plan(projectId, goal),
     'agent:approveRun': ({ runId }) => services.agent.approveRun(runId),
     'agent:rejectRun': ({ runId }) => services.agent.rejectRun(runId),

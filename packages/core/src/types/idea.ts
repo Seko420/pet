@@ -24,6 +24,8 @@ export interface IdeaBrief {
   count: number;
   /** Optional seed for reproducible generation. */
   seed?: number;
+  /** Use the configured AI provider instead of the offline engine. */
+  useAi?: boolean;
 }
 
 export interface IdeaRisk {
@@ -72,4 +74,7 @@ export interface GameIdea {
 
   /** Set when the idea has been promoted to a project. */
   projectId?: string | null;
+
+  /** How this idea was produced ('heuristic' = offline engine, 'ai' = LLM). */
+  source?: 'heuristic' | 'ai';
 }

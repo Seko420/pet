@@ -1,10 +1,12 @@
 import {
   AiProviderError,
+  abortOrNetworkError,
   type AiCompletionRequest,
   type AiCompletionResult,
   type AiProvider,
   type AiProviderStatus,
 } from './provider';
+import { sseDataLines } from './sse';
 
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-5';
 
@@ -33,15 +35,26 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
     );
   }
 
-  async function complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
+  function buildBody(request: AiCompletionRequest, stream: boolean): string {
     const messages = request.messages.map((m) => ({ role: m.role, content: m.content }));
     if (request.jsonMode && messages.length > 0) {
       const last = messages[messages.length - 1];
       if (last && last.role === 'user') {
-        last.content += '\n\nAntworte AUSSCHLIESSLICH mit einem einzelnen gültigen JSON-Objekt. Keine Markdown-Zäune, kein Text davor oder danach.';
+        last.content +=
+          '\n\nAntworte AUSSCHLIESSLICH mit einem einzelnen gültigen JSON-Objekt. Keine Markdown-Zäune, kein Text davor oder danach.';
       }
     }
+    return JSON.stringify({
+      model,
+      max_tokens: request.maxTokens ?? 4096,
+      ...(request.system ? { system: request.system } : {}),
+      ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+      ...(stream ? { stream: true } : {}),
+      messages,
+    });
+  }
 
+  async function post(request: AiCompletionRequest, stream: boolean, signal?: AbortSignal): Promise<Response> {
     let response: Response;
     try {
       response = await fetchFn(API_URL, {
@@ -51,22 +64,12 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
           'anthropic-version': API_VERSION,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: request.maxTokens ?? 4096,
-          ...(request.system ? { system: request.system } : {}),
-          ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-          messages,
-        }),
+        body: buildBody(request, stream),
+        ...(signal ? { signal } : {}),
       });
-    } catch {
-      throw new AiProviderError(
-        'Netzwerkfehler beim Kontaktieren der Anthropic API. Prüfe deine Internetverbindung.',
-        'network',
-        true,
-      );
+    } catch (err) {
+      throw abortOrNetworkError(err, 'api.anthropic.com');
     }
-
     if (!response.ok) {
       const status = response.status;
       if (status === 401 || status === 403) {
@@ -90,20 +93,19 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
           true,
         );
       }
-      throw new AiProviderError(
-        `Anthropic API antwortete mit HTTP ${status}.`,
-        'unknown',
-        false,
-      );
+      throw new AiProviderError(`Anthropic API antwortete mit HTTP ${status}.`, 'unknown', false);
     }
+    return response;
+  }
 
+  async function complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
+    const response = await post(request, false);
     let payload: unknown;
     try {
       payload = await response.json();
     } catch {
       throw new AiProviderError('Antwort der Anthropic API war kein gültiges JSON.', 'invalid_response', false);
     }
-
     const body = payload as {
       content?: { type: string; text?: string }[];
       usage?: { input_tokens?: number; output_tokens?: number };
@@ -111,13 +113,8 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
     };
     const text = body.content?.find((c) => c.type === 'text')?.text;
     if (typeof text !== 'string') {
-      throw new AiProviderError(
-        'Antwort der Anthropic API enthielt keinen Text-Inhalt.',
-        'invalid_response',
-        false,
-      );
+      throw new AiProviderError('Antwort der Anthropic API enthielt keinen Text-Inhalt.', 'invalid_response', false);
     }
-
     return {
       text,
       provider: 'anthropic',
@@ -125,6 +122,47 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
       inputTokens: body.usage?.input_tokens ?? null,
       outputTokens: body.usage?.output_tokens ?? null,
     };
+  }
+
+  async function completeStream(
+    request: AiCompletionRequest,
+    onDelta: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AiCompletionResult> {
+    const response = await post(request, true, signal);
+    if (!response.body) {
+      throw new AiProviderError('Anthropic-Stream ohne Antwortkörper.', 'invalid_response', false);
+    }
+    let text = '';
+    let inputTokens: number | null = null;
+    let outputTokens: number | null = null;
+    try {
+      for await (const data of sseDataLines(response.body)) {
+        let event: {
+          type?: string;
+          delta?: { type?: string; text?: string };
+          message?: { usage?: { input_tokens?: number } };
+          usage?: { output_tokens?: number };
+        };
+        try {
+          event = JSON.parse(data) as typeof event;
+        } catch {
+          continue; // keep-alive/ping lines
+        }
+        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta' && event.delta.text) {
+          text += event.delta.text;
+          onDelta(event.delta.text);
+        } else if (event.type === 'message_start' && event.message?.usage?.input_tokens !== undefined) {
+          inputTokens = event.message.usage.input_tokens;
+        } else if (event.type === 'message_delta' && event.usage?.output_tokens !== undefined) {
+          outputTokens = event.usage.output_tokens;
+        }
+      }
+    } catch (err) {
+      if (err instanceof AiProviderError) throw err;
+      throw abortOrNetworkError(err, 'api.anthropic.com');
+    }
+    return { text, provider: 'anthropic', model, inputTokens, outputTokens };
   }
 
   return {
@@ -138,5 +176,6 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
       };
     },
     complete,
+    completeStream,
   };
 }

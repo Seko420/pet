@@ -212,11 +212,11 @@ describe('ai provider selection', () => {
     ai.invalidate();
     expect(ai.getProvider().name).toBe('openai');
 
-    ai.setConfig({ provider: 'mock', model: null, customBaseUrl: null });
+    ai.setConfig({ provider: 'mock', model: null, customBaseUrl: null, temperature: null, maxTokens: null });
     expect(ai.getProvider().name).toBe('mock');
 
     // custom_ai without base URL falls back to mock instead of crashing
-    ai.setConfig({ provider: 'custom_ai', model: 'llama3', customBaseUrl: null });
+    ai.setConfig({ provider: 'custom_ai', model: 'llama3', customBaseUrl: null, temperature: null, maxTokens: null });
     secrets.set('Custom', 'custom_ai', 'ck-test-123456');
     ai.invalidate();
     expect(ai.getProvider().name).toBe('mock');

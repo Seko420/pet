@@ -20,29 +20,41 @@ export function createMockProvider(): AiProvider {
     },
 
     async complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
-      const lastUser = [...request.messages].reverse().find((m) => m.role === 'user');
-      const text = request.jsonMode
-        ? JSON.stringify({
-            note: 'mock',
-            hint: 'Mock-Modus aktiv – dieses JSON ist ein Platzhalter ohne inhaltliche Aussage.',
-          })
-        : [
-            'Hinweis: Die KI-Anbindung läuft im Mock-Modus (kein API-Key hinterlegt).',
-            'Hinterlege in den Einstellungen einen Anthropic API-Key, um echte Antworten zu erhalten.',
-            lastUser
-              ? `Deine Anfrage (${Math.min(lastUser.content.length, 9999)} Zeichen) wurde nicht an eine KI gesendet.`
-              : '',
-          ]
-            .filter(Boolean)
-            .join('\n');
+      return { text: buildMockText(request), provider: 'mock', model: 'mock', inputTokens: null, outputTokens: null };
+    },
 
-      return {
-        text,
-        provider: 'mock',
-        model: 'mock',
-        inputTokens: null,
-        outputTokens: null,
-      };
+    // Chunked mock streaming so the chat UI (deltas, stop button) can be
+    // exercised completely offline.
+    async completeStream(request, onDelta, signal): Promise<AiCompletionResult> {
+      const text = buildMockText(request);
+      const words = text.split(/(\s+)/);
+      let sent = '';
+      for (const word of words) {
+        if (signal?.aborted) break;
+        sent += word;
+        onDelta(word);
+        await new Promise((resolve) => setTimeout(resolve, 8));
+      }
+      return { text: sent, provider: 'mock', model: 'mock', inputTokens: null, outputTokens: null };
     },
   };
+}
+
+function buildMockText(request: AiCompletionRequest): string {
+  const lastUser = [...request.messages].reverse().find((m) => m.role === 'user');
+  if (request.jsonMode) {
+    return JSON.stringify({
+      note: 'mock',
+      hint: 'Mock-Modus aktiv – dieses JSON ist ein Platzhalter ohne inhaltliche Aussage.',
+    });
+  }
+  return [
+    'Hinweis: Die KI-Anbindung läuft im Mock-Modus (kein API-Key hinterlegt).',
+    'Hinterlege in den Einstellungen einen KI-Schlüssel (Anthropic, OpenAI oder eine kostenlose lokale KI wie LM Studio), um echte Antworten zu erhalten.',
+    lastUser
+      ? `Deine Anfrage (${Math.min(lastUser.content.length, 9999)} Zeichen) wurde nicht an eine KI gesendet.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }

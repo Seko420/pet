@@ -49,8 +49,9 @@ export class SecretsService {
   set(name: string, service: SecretService, value: string): SecretRef {
     this.assertAvailable();
     const trimmed = value.trim();
-    if (trimmed.length < 8) {
-      throw new Error('Der Schlüssel ist zu kurz - bitte den vollständigen API-Key einfügen.');
+    // Local AI endpoints (LM Studio/Ollama) accept short placeholder keys.
+    if (trimmed.length < 4) {
+      throw new Error('Der Schlüssel ist zu kurz - bitte den vollständigen API-Key einfügen (für lokale KIs reicht z.B. "lokal").');
     }
     if (!name.trim()) {
       throw new Error('Bitte einen Namen für den Schlüssel angeben.');

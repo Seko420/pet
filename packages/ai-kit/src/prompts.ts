@@ -1,4 +1,4 @@
-import type { GameIdea, GameProject } from '@egf/core';
+import type { GameIdea, GameProject, IdeaBrief } from '@egf/core';
 import { AUDIENCE_LABELS, GENRE_LABELS, MONETIZATION_LABELS } from '@egf/core';
 
 /**
@@ -97,6 +97,74 @@ export function buildAgentPlanPrompt(
       `"checksSuggested": string[], "warnings": string[], ` +
       `"changes": [{"path": string, "kind": "create"|"modify"|"delete", "summary": string, "newContent": string|null}]}\n` +
       `Für kind "create"/"modify" MUSS newContent den vollständigen neuen Dateiinhalt enthalten; für "delete" ist newContent null.`,
+  };
+}
+
+/** Full AI idea generation: ONE call returns `count` complete ideas as JSON. */
+export function buildIdeaGenPrompt(brief: IdeaBrief): { system: string; user: string } {
+  const genres = brief.genres.length > 0 ? brief.genres.join(', ') : 'frei wählbar (originell!)';
+  return {
+    system:
+      'Du bist ein erfahrenes Game-Design-Team für Roblox- und Mobile-Spiele mit Fokus auf Marktpotenzial. ' +
+      'Du erfindest ORIGINELLE Spielideen (keine Kopien existierender Marken/Spiele), mit ehrlicher Risiko-Einschätzung und fairer Monetarisierung ohne Dark Patterns. Antworte auf Deutsch.',
+    user:
+      `Erfinde ${brief.count} Spielideen.\n` +
+      `Plattform: ${brief.platform} | Genres: ${genres} | Zielgruppe: ${AUDIENCE_LABELS[brief.audience]} | ` +
+      `Multiplayer: ${brief.multiplayer} | Max. Aufwand: ${brief.maxEffort}` +
+      (brief.themeHints ? ` | Themenwünsche: ${brief.themeHints}` : '') +
+      `\n\nAntworte als JSON-Objekt mit exakt dieser Struktur:\n` +
+      `{"ideas": [{"title": string, "genre": string (eine ID aus: simulator, tycoon, obby, rpg_lite, survival, roguelite, idle, hypercasual, hybridcasual, puzzle, tower_defense, battle_arena, racing, horror, social_hangout, sandbox, card_battler, merge, runner, sports), ` +
+      `"theme": string, "elevatorPitch": string (2-3 Sätze), ` +
+      `"coreLoop": string[4-6 Schritte], "usp": string, "audienceNotes": string, ` +
+      `"monetization": [{"model": string, "description": string}] (2-3, Modelle nur aus: game_passes, developer_products, cosmetics, battle_pass, rewarded_ads, iap_consumables, iap_non_consumables), ` +
+      `"risks": [{"title": string, "level": "low"|"medium"|"high", "mitigation": string}] (2-3), ` +
+      `"whyItCouldSucceed": string[3], "whyItCouldFail": string[3], ` +
+      `"improvedTitle": string, "improvedChanges": string[3], "improvedPitch": string, ` +
+      `"effortBreakdown": string}]}`,
+  };
+}
+
+/** Qualitative deep review of a project (complements the heuristic scores). */
+export function buildQualityReviewPrompt(
+  project: GameProject,
+  gddExcerpt: string,
+  openTaskTitles: string[],
+): { system: string; user: string } {
+  return {
+    system:
+      'Du bist ein kritischer Senior-Game-Design-Reviewer für Roblox- und Mobile-Spiele. ' +
+      'Du bewertest ehrlich und konkret - keine Gefälligkeiten, keine Umsatzversprechen. Antworte auf Deutsch.',
+    user:
+      `${projectBrief(project)}\n\n` +
+      (gddExcerpt ? `GDD-AUSZUG:\n${gddExcerpt}\n\n` : '') +
+      (openTaskTitles.length > 0 ? `OFFENE AUFGABEN:\n${openTaskTitles.slice(0, 15).join('\n')}\n\n` : '') +
+      `Analysiere das Projekt kritisch. Antworte als JSON-Objekt:\n` +
+      `{"summary": string (3-4 Sätze Gesamteinschätzung), "strengths": string[3-5], ` +
+      `"weaknesses": string[3-5], "firstMinute": string (konkrete Empfehlung für die erste Spielminute), ` +
+      `"suggestions": [{"title": string, "detail": string, "impact": 1-5}] (4-6, nach Impact sortiert), ` +
+      `"risks": string[2-4]}`,
+  };
+}
+
+/** AI task planning: proposes tasks that complement the existing board. */
+export function buildTaskPlanPrompt(
+  project: GameProject,
+  existingTitles: string[],
+  goal?: string,
+): { system: string; user: string } {
+  return {
+    system:
+      'Du bist ein erfahrener Producer für Spielprojekte. Du planst konkrete, kleine, umsetzbare Aufgaben ' +
+      '(keine vagen Epics), realistisch geschätzt. Antworte auf Deutsch.',
+    user:
+      `${projectBrief(project)}\n\n` +
+      (goal ? `FOKUS: ${goal}\n\n` : '') +
+      `BEREITS VORHANDENE AUFGABEN (NICHT wiederholen):\n${existingTitles.slice(0, 60).join('\n')}\n\n` +
+      `Schlage 5-12 NEUE Aufgaben vor, die dieses Projekt jetzt am meisten voranbringen. ` +
+      `Antworte als JSON-Objekt:\n` +
+      `{"tasks": [{"title": string (max 70 Zeichen), "description": string, ` +
+      `"category": "design"|"code"|"art"|"audio"|"ui_ux"|"monetization"|"liveops"|"analytics"|"qa"|"publishing"|"marketing"|"infrastructure", ` +
+      `"priority": "low"|"medium"|"high"|"critical", "estimateHours": number, "milestone": "MVP"|"Beta"|"Release"}]}`,
   };
 }
 

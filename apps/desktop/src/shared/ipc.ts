@@ -67,6 +67,22 @@ export interface AiConfig {
   model: string | null;
   /** Base URL for OpenAI-compatible custom endpoints. */
   customBaseUrl: string | null;
+  /** Sampling temperature 0..1; null = provider default. */
+  temperature: number | null;
+  /** Max output tokens per request; null = default (4096). */
+  maxTokens: number | null;
+}
+
+/** Result of a one-shot AI quality review of a project. */
+export interface AiQualityReview {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  firstMinute: string;
+  suggestions: { title: string; detail: string; impact: number }[];
+  risks: string[];
+  createdAt: string;
+  model: string;
 }
 
 export interface BackupInfo {
@@ -220,6 +236,10 @@ export interface IpcChannelMap {
   'ai:status': { req: undefined; res: AiStatusInfo };
   'ai:getConfig': { req: undefined; res: AiConfig };
   'ai:setConfig': { req: AiConfig; res: AiConfig };
+  /** Sends a tiny real request to the configured provider. */
+  'ai:testConnection': { req: undefined; res: { ok: boolean; message: string; model: string } };
+  /** Aborts a running streamed AI request (chat). */
+  'ai:abort': { req: { requestId: string }; res: void };
 
   'app:createBackup': { req: undefined; res: BackupInfo };
   'app:listBackups': { req: undefined; res: BackupInfo[] };
@@ -252,6 +272,8 @@ export interface IpcChannelMap {
     req: { projectId: string; sectionId: string; markdown: string };
     res: GddDocument;
   };
+  /** Improves one section via the configured AI provider (fails in mock mode). */
+  'gdd:improveSection': { req: { projectId: string; sectionId: string }; res: GddDocument };
   'gdd:exportMarkdown': { req: { projectId: string }; res: { path: string } };
 
   'tasks:listForProject': { req: { projectId: string }; res: TaskItem[] };
@@ -259,8 +281,13 @@ export interface IpcChannelMap {
   'tasks:update': { req: TaskUpdateInput; res: TaskItem };
   'tasks:delete': { req: { id: string }; res: void };
   'tasks:generateForProject': { req: { projectId: string }; res: TaskItem[] };
+  /** AI task planning: appends AI-proposed tasks (skips duplicate titles). */
+  'tasks:aiPlan': { req: { projectId: string; goal?: string }; res: TaskItem[] };
 
   'scores:evaluateProject': { req: { projectId: string }; res: ScoreEvaluation };
+  /** Qualitative AI deep-review, persisted per project. */
+  'scores:aiReview': { req: { projectId: string }; res: AiQualityReview };
+  'scores:getAiReview': { req: { projectId: string }; res: AiQualityReview | null };
 
   'content:listForProject': { req: { projectId: string }; res: ContentItem[] };
   'content:generatePlan': { req: { projectId: string }; res: ContentItem[] };
@@ -309,6 +336,11 @@ export interface IpcChannelMap {
 
   'agent:history': { req: { projectId: string }; res: AgentChatMessage[] };
   'agent:send': { req: AgentMessageRequest; res: AgentChatMessage[] };
+  /**
+   * Streamed chat: returns immediately with a requestId; deltas arrive via
+   * 'event:aiChunk', completion via 'event:aiDone' (then reload history).
+   */
+  'agent:sendStream': { req: AgentMessageRequest; res: { requestId: string } };
   'agent:plan': { req: AgentPlanRequest; res: AgentRun };
   'agent:approveRun': { req: { runId: string }; res: AgentRun };
   'agent:rejectRun': { req: { runId: string }; res: AgentRun };
@@ -353,6 +385,10 @@ export type IpcResponse<C extends IpcChannel> = IpcChannelMap[C]['res'];
 export interface IpcEventMap {
   'event:buildOutput': BuildOutputEvent;
   'event:buildExit': BuildExitEvent;
+  /** Streamed AI text delta for a running chat request. */
+  'event:aiChunk': { requestId: string; projectId: string; delta: string };
+  /** Terminal event of a streamed AI request. */
+  'event:aiDone': { requestId: string; projectId: string; ok: boolean; error: string | null };
 }
 
 export type IpcEvent = keyof IpcEventMap;

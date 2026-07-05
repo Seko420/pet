@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### Echte KI-Integration
+- Live-Streaming im Projekt-Chat (Text erscheint während des Schreibens) mit Stopp-Knopf, in Desktop- UND Web-Modus (SSE); Chat kennt jetzt GDD-Überblick, Aufgabenstand und Scores des Projekts
+- „Verbindung testen" für die KI (echter Mini-Request), Modell-, Temperatur- und Max-Tokens-Einstellungen, Kosten- und Kostenlos-Hinweise
+- Echte KI-Spielideen im Idea Lab (✨-Schalter), KI-Verbesserung einzelner GDD-Sektionen, KI-Qualitäts-Tiefenanalyse (Stärken/Schwächen/erste Minute/Risiken, persistiert), KI-Aufgabenplanung mit Validierung
+- „Als Aufgabe speichern" für Chat-Antworten; klare deutsche Fehlermeldungen statt stiller Fehlschläge im Mock-Modus
+- Anfrage-Protokoll nur mit Metadaten (nie Inhalte/Schlüssel, Tabelle ai_request_log); DB-Migration v4
+- Kostenlose lokale KI dokumentiert und unterstützt (LM Studio/Ollama, docs/KI-SETUP.md); kurze Platzhalter-Schlüssel für lokale Endpunkte erlaubt
+
 ### Web-Modus (private Browser-Variante)
 - Gleiche App als passwortgeschützter Server (`npm run web`): identische UI und Funktionen im Browser, HTTP-Bridge + Server-Sent Events statt Electron-IPC
 - Kanal-Dispatcher (`ipc/handlers.ts`) Electron-frei extrahiert — Desktop und Web teilen sich exakt denselben typisierten Vertrag (Funktionsparität zur Compile-Zeit)

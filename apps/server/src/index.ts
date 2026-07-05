@@ -100,12 +100,17 @@ app.use((req, res, next) => {
   res.status(401).send('Anmeldung erforderlich.');
 });
 
-// SSE: Build-Events an alle offenen Browser-Tabs.
+// SSE: Build- und KI-Streaming-Events an alle offenen Browser-Tabs.
 const sseClients = new Set<Response>();
-services.build.setSink((event) => {
-  const name = event.type === 'output' ? 'event:buildOutput' : 'event:buildExit';
-  const frame = `event: ${name}\ndata: ${JSON.stringify(event.payload)}\n\n`;
+const sseBroadcast = (name: string, payload: unknown): void => {
+  const frame = `event: ${name}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const client of sseClients) client.write(frame);
+};
+services.build.setSink((event) => {
+  sseBroadcast(event.type === 'output' ? 'event:buildOutput' : 'event:buildExit', event.payload);
+});
+services.agent.setSink((event) => {
+  sseBroadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
 });
 
 app.get('/api/events', (req, res) => {

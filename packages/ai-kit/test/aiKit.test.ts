@@ -99,6 +99,72 @@ describe('openai-compatible provider', () => {
   });
 });
 
+function sseResponse(frames: string[]): Response {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const frame of frames) controller.enqueue(encoder.encode(frame));
+      controller.close();
+    },
+  });
+  return new Response(body, { status: 200 });
+}
+
+describe('streaming', () => {
+  it('parses anthropic SSE deltas and usage', async () => {
+    const provider = createAnthropicProvider({
+      apiKey: SECRET_KEY,
+      fetchFn: (async () =>
+        sseResponse([
+          'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":9}}}\n\n',
+          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hal"}}\n\n',
+          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo!"}}\n\n',
+          'data: {"type":"message_delta","usage":{"output_tokens":2}}\n\n',
+          'data: {"type":"message_stop"}\n\n',
+        ])) as typeof fetch,
+    });
+    const deltas: string[] = [];
+    const result = await provider.completeStream({ messages: [{ role: 'user', content: 'Hi' }] }, (d) => deltas.push(d));
+    expect(deltas).toEqual(['Hal', 'lo!']);
+    expect(result.text).toBe('Hallo!');
+    expect(result.inputTokens).toBe(9);
+    expect(result.outputTokens).toBe(2);
+  });
+
+  it('parses openai-compatible SSE deltas until [DONE]', async () => {
+    const provider = createOpenAiCompatibleProvider({
+      apiKey: SECRET_KEY,
+      fetchFn: (async () =>
+        sseResponse([
+          'data: {"choices":[{"delta":{"content":"Mo"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"in"}}]}\n\n',
+          'data: [DONE]\n\n',
+        ])) as typeof fetch,
+    });
+    const deltas: string[] = [];
+    const result = await provider.completeStream({ messages: [{ role: 'user', content: 'Hi' }] }, (d) => deltas.push(d));
+    expect(deltas.join('')).toBe('Moin');
+    expect(result.text).toBe('Moin');
+  });
+
+  it('mock streams chunks and can be aborted', async () => {
+    const provider = createMockProvider();
+    const controller = new AbortController();
+    const deltas: string[] = [];
+    const promise = provider.completeStream(
+      { messages: [{ role: 'user', content: 'Hi' }] },
+      (d) => {
+        deltas.push(d);
+        if (deltas.length === 3) controller.abort();
+      },
+      controller.signal,
+    );
+    const result = await promise;
+    expect(deltas.length).toBeGreaterThanOrEqual(3);
+    expect(result.text.length).toBeLessThan(200); // abgebrochen, nicht der volle Text
+  });
+});
+
 describe('prompt builders', () => {
   it('embeds goal, tree and JSON contract into the plan prompt', () => {
     const { system, user } = buildAgentPlanPrompt('Baue ein Quest-System', 'src/\n  main.luau', [

@@ -21,6 +21,7 @@ export function Settings(): React.JSX.Element {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [secrets, setSecrets] = useState<SecretRef[] | null>(null);
   const [backups, setBackups] = useState<BackupInfo[] | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string; model: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,9 +45,22 @@ export function Settings(): React.JSX.Element {
     try {
       const next = await api.invoke('ai:setConfig', { ...aiConfig, ...patch });
       setAiConfig(next);
+      setTestResult(null);
       api.invoke('ai:status', undefined).then(setAi).catch(() => undefined);
     } catch (err) {
       setError((err as Error).message);
+    }
+  };
+
+  const testAiConnection = async (): Promise<void> => {
+    setBusy('aitest');
+    setTestResult(null);
+    try {
+      setTestResult(await api.invoke('ai:testConnection', undefined));
+    } catch (err) {
+      setTestResult({ ok: false, message: (err as Error).message, model: '-' });
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -138,13 +152,37 @@ export function Settings(): React.JSX.Element {
                 ))}
               </div>
             </Field>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-4">
               <Field label="Modell (optional)" hint="Leer = Standardmodell des Anbieters">
                 <input
                   className="input"
                   defaultValue={aiConfig.model ?? ''}
                   placeholder="z.B. claude-sonnet-5 / gpt-4o"
                   onBlur={(e) => void saveAiConfig({ model: e.target.value.trim() || null })}
+                />
+              </Field>
+              <Field label="Temperatur (0–1)" hint="Leer = Standard; höher = kreativer">
+                <input
+                  className="input"
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  max={1}
+                  defaultValue={aiConfig.temperature ?? ''}
+                  placeholder="Standard"
+                  onBlur={(e) => void saveAiConfig({ temperature: e.target.value === '' ? null : Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="Max. Tokens" hint="Leer = 4096; begrenzt Kosten pro Anfrage">
+                <input
+                  className="input"
+                  type="number"
+                  step={500}
+                  min={100}
+                  max={64000}
+                  defaultValue={aiConfig.maxTokens ?? ''}
+                  placeholder="4096"
+                  onBlur={(e) => void saveAiConfig({ maxTokens: e.target.value === '' ? null : Number(e.target.value) })}
                 />
               </Field>
               {aiConfig.provider === 'custom_ai' ? (
@@ -158,12 +196,26 @@ export function Settings(): React.JSX.Element {
                 </Field>
               ) : null}
             </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button className="btn-secondary" onClick={() => void testAiConnection()} disabled={busy === 'aitest'}>
+                {busy === 'aitest' ? 'Teste Verbindung…' : 'Verbindung testen'}
+              </button>
+              {testResult ? (
+                <span className={`text-sm ${testResult.ok ? 'text-good' : 'text-bad'}`}>{testResult.message}</span>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
         <p className="text-xs text-mist-400">
-          Die App funktioniert vollständig ohne KI-Key: alle Generatoren laufen dann über die eingebauten, deterministischen Heuristik-Engines. Ein Key schaltet zusätzlich Ideen-Verfeinerung, echte Code-Agent-Pläne und Commit-Vorschläge frei. Der passende API-Key wird unten unter „API-Schlüssel" hinterlegt.
+          Die App funktioniert vollständig ohne KI-Key: alle Generatoren laufen dann über die eingebauten, deterministischen Heuristik-Engines. Ein Key schaltet zusätzlich echte KI-Ideen, GDD-Verbesserung, KI-Qualitätsanalyse, KI-Aufgabenplanung, den Code-Agenten und Commit-Vorschläge frei.
         </p>
+        <div className="rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
+          💰 Kostenhinweis: Anfragen an Anthropic/OpenAI kosten Geld (je nach Modell meist wenige Cent pro Anfrage; „Max. Tokens" begrenzt die Kosten). Der Mock-Modus und lokale KIs sind kostenlos.
+        </div>
+        <div className="rounded-lg border border-good/30 bg-good/5 px-3 py-2 text-xs text-mist-300">
+          🆓 <span className="font-semibold text-good">Kostenlos ohne Cloud:</span> Installiere <span className="font-medium">LM Studio</span> (lmstudio.ai) oder <span className="font-medium">Ollama</span>, starte dort den lokalen Server, wähle oben „Eigene API" mit Basis-URL <code className="text-forge-300">http://localhost:1234/v1</code> (LM Studio) bzw. <code className="text-forge-300">http://localhost:11434/v1</code> (Ollama) und lege unten einen beliebigen Schlüssel (z.B. „lokal") als „Eigene KI-API" an. Schritt-für-Schritt: <code>docs/KI-SETUP.md</code>
+        </div>
       </Card>
 
       <Card className="space-y-3">

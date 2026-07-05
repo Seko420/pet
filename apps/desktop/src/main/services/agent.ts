@@ -7,18 +7,75 @@ import type { AiService } from './ai';
 import type { FilesService } from './files';
 import type { ProjectsService } from './projects';
 
+type AgentStreamSink = (
+  event:
+    | { type: 'chunk'; payload: { requestId: string; projectId: string; delta: string } }
+    | { type: 'done'; payload: { requestId: string; projectId: string; ok: boolean; error: string | null } },
+) => void;
+
 /**
  * Code Agent backend. The loop is fixed and non-negotiable:
  * goal -> plan (AI) -> awaiting_approval -> (user approves) -> apply with
  * undo snapshots -> summarize. A failed apply rolls back everything.
+ * Chat supports streaming (deltas via sink) with per-request abort.
  */
 export class AgentService {
+  private sink: AgentStreamSink = () => {};
+  private readonly activeStreams = new Map<string, AbortController>();
+
   constructor(
     private readonly db: Db,
     private readonly projects: ProjectsService,
     private readonly files: FilesService,
     private readonly ai: AiService,
   ) {}
+
+  setSink(sink: AgentStreamSink): void {
+    this.sink = sink;
+  }
+
+  abort(requestId: string): void {
+    this.activeStreams.get(requestId)?.abort();
+    this.activeStreams.delete(requestId);
+  }
+
+  /**
+   * Project context injected into the chat system prompt so answers are
+   * grounded in THIS project (GDD, board state, scores) - kept small to
+   * bound token usage.
+   */
+  private buildProjectContext(projectId: string): string {
+    const parts: string[] = [];
+    try {
+      const gddRow = this.db.prepare('SELECT data FROM gdds WHERE project_id = ?').get(projectId) as
+        | { data: string }
+        | undefined;
+      if (gddRow) {
+        const gdd = JSON.parse(gddRow.data) as { sections: { id: string; markdown: string }[] };
+        const overview = gdd.sections.find((s) => s.id === 'overview');
+        if (overview) parts.push(`GDD-ÜBERBLICK:\n${overview.markdown.slice(0, 700)}`);
+      }
+      const taskRows = this.db
+        .prepare("SELECT data FROM tasks WHERE project_id = ? AND status != 'done' ORDER BY sort_order LIMIT 6")
+        .all(projectId) as { data: string }[];
+      const counts = this.db
+        .prepare("SELECT SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done, COUNT(*) AS total FROM tasks WHERE project_id = ?")
+        .get(projectId) as { done: number | null; total: number };
+      if (counts.total > 0) {
+        const titles = taskRows.map((r) => `- ${(JSON.parse(r.data) as { title: string }).title}`);
+        parts.push(`AUFGABEN (${counts.done ?? 0}/${counts.total} erledigt), nächste offene:\n${titles.join('\n')}`);
+      }
+      const project = this.projects.get(projectId);
+      if (project?.scores) {
+        parts.push(
+          `SCORES: Gesamt ${project.scores.overall}/100, Fun ${project.scores.fun.value}, Retention ${project.scores.retention.value}, Monetarisierung ${project.scores.monetization.value}`,
+        );
+      }
+    } catch {
+      /* context is best-effort - never block the chat */
+    }
+    return parts.length > 0 ? `\n\nAKTUELLER PROJEKT-KONTEXT:\n${parts.join('\n\n')}` : '';
+  }
 
   // ------------------------------------------------------------------ chat
 
@@ -35,8 +92,20 @@ export class AgentService {
       .run(message.id, message.projectId, message.createdAt, JSON.stringify(message));
   }
 
-  async send(projectId: string, text: string): Promise<AgentChatMessage[]> {
+  private buildChatRequest(projectId: string): { system: string; messages: { role: 'user' | 'assistant'; content: string }[] } {
     const project = this.projects.require(projectId);
+    const historyMessages = this.history(projectId)
+      .slice(-20)
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    return {
+      system: buildAgentChatSystem(project) + this.buildProjectContext(projectId),
+      messages: historyMessages,
+    };
+  }
+
+  async send(projectId: string, text: string): Promise<AgentChatMessage[]> {
+    this.projects.require(projectId);
     if (!text.trim()) throw new Error('Leere Nachricht.');
     this.saveMessage({
       id: createId('msg'),
@@ -47,18 +116,10 @@ export class AgentService {
       createdAt: nowIso(),
     });
 
-    const provider = this.ai.getProvider();
     let reply: string;
     try {
-      const historyMessages = this.history(projectId)
-        .slice(-20)
-        .filter((m) => m.role !== 'system')
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      const result = await provider.complete({
-        system: buildAgentChatSystem(project),
-        messages: historyMessages,
-        maxTokens: 2000,
-      });
+      const { system, messages } = this.buildChatRequest(projectId);
+      const result = await this.ai.run('chat', { system, messages, maxTokens: 2000 });
       reply = result.text;
     } catch (err) {
       // Honest degradation: the error becomes the assistant message.
@@ -76,6 +137,68 @@ export class AgentService {
       createdAt: nowIso(),
     });
     return this.history(projectId);
+  }
+
+  /**
+   * Streamed chat: persists the user message, streams deltas through the
+   * sink, persists the assistant message at the end (also on abort, with
+   * the partial text). Returns immediately with the requestId.
+   */
+  sendStream(projectId: string, text: string): { requestId: string } {
+    this.projects.require(projectId);
+    if (!text.trim()) throw new Error('Leere Nachricht.');
+    const requestId = createId('req');
+    this.saveMessage({
+      id: createId('msg'),
+      projectId,
+      role: 'user',
+      content: text.trim(),
+      runId: null,
+      createdAt: nowIso(),
+    });
+
+    const controller = new AbortController();
+    this.activeStreams.set(requestId, controller);
+
+    void (async () => {
+      let full = '';
+      let ok = true;
+      let error: string | null = null;
+      try {
+        const { system, messages } = this.buildChatRequest(projectId);
+        const result = await this.ai.runStream(
+          'chat_stream',
+          { system, messages, maxTokens: 2000 },
+          (delta) => {
+            full += delta;
+            this.sink({ type: 'chunk', payload: { requestId, projectId, delta } });
+          },
+          controller.signal,
+        );
+        full = result.text || full;
+      } catch (err) {
+        if (err instanceof AiProviderError && err.kind === 'aborted') {
+          full = full ? `${full}\n\n[Vom Nutzer gestoppt]` : '[Vom Nutzer gestoppt]';
+        } else {
+          ok = false;
+          error = err instanceof Error ? err.message : String(err);
+          full = full || `KI-Anfrage fehlgeschlagen: ${error}`;
+        }
+      } finally {
+        this.activeStreams.delete(requestId);
+        this.saveMessage({
+          id: createId('msg'),
+          projectId,
+          role: 'assistant',
+          content: full,
+          runId: null,
+          createdAt: nowIso(),
+        });
+        this.sink({ type: 'done', payload: { requestId, projectId, ok, error } });
+      }
+    })();
+
+    return { requestId };
   }
 
   // ------------------------------------------------------------------ runs
@@ -184,7 +307,7 @@ export class AgentService {
     );
 
     try {
-      const result = await provider.complete({
+      const result = await this.ai.run('agent_plan', {
         system,
         messages: [{ role: 'user', content: user }],
         jsonMode: true,

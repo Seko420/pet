@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bot, Check, ChevronDown, ChevronRight, Send, X } from 'lucide-react';
+import { Bot, Check, ChevronDown, ChevronRight, ListPlus, Send, Square, X } from 'lucide-react';
 import type { AgentChatMessage, AgentRun } from '@egf/core';
 import type { AiStatusInfo } from '@shared/ipc';
 import { api } from '../../lib/api';
@@ -121,6 +121,8 @@ export function CodeAgentView(): React.JSX.Element {
   const [input, setInput] = useState('');
   const [goal, setGoal] = useState('');
   const [sending, setSending] = useState(false);
+  const [streaming, setStreaming] = useState<{ requestId: string; text: string } | null>(null);
+  const [taskNote, setTaskNote] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
   const [busyRun, setBusyRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,20 +137,73 @@ export function CodeAgentView(): React.JSX.Element {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streaming]);
+
+  // Live-Streaming: Text-Häppchen und Abschluss-Ereignis der KI-Antwort.
+  useEffect(() => {
+    const offChunk = api.on('event:aiChunk', (event) => {
+      if (event.projectId !== project.id) return;
+      setStreaming((prev) =>
+        prev && prev.requestId === event.requestId ? { ...prev, text: prev.text + event.delta } : prev,
+      );
+    });
+    const offDone = api.on('event:aiDone', (event) => {
+      if (event.projectId !== project.id) return;
+      setStreaming((prev) => (prev && prev.requestId === event.requestId ? null : prev));
+      setSending(false);
+      if (event.error) setError(event.error);
+      api.invoke('agent:history', { projectId: project.id }).then(setMessages).catch(() => undefined);
+    });
+    return () => {
+      offChunk();
+      offDone();
+    };
+  }, [project.id]);
 
   const send = async (): Promise<void> => {
     if (!input.trim() || sending) return;
     setSending(true);
     setError(null);
+    const text = input.trim();
+    setInput('');
+    // Optimistic: show the user message immediately.
+    setMessages((prev) => [
+      ...(prev ?? []),
+      { id: `tmp-${Date.now()}`, projectId: project.id, role: 'user', content: text, runId: null, createdAt: new Date().toISOString() },
+    ]);
     try {
-      const history = await api.invoke('agent:send', { projectId: project.id, message: input });
-      setMessages(history);
-      setInput('');
+      const { requestId } = await api.invoke('agent:sendStream', { projectId: project.id, message: text });
+      setStreaming({ requestId, text: '' });
     } catch (err) {
       setError((err as Error).message);
-    } finally {
       setSending(false);
+    }
+  };
+
+  const stopStreaming = async (): Promise<void> => {
+    if (!streaming) return;
+    try {
+      await api.invoke('ai:abort', { requestId: streaming.requestId });
+    } catch {
+      /* done-Event räumt auf */
+    }
+  };
+
+  const saveAsTask = async (content: string): Promise<void> => {
+    try {
+      const title = (content.split('\n').find((l) => l.trim()) ?? 'KI-Vorschlag').replace(/^[#\-*\d.\s]+/, '').slice(0, 70);
+      await api.invoke('tasks:create', {
+        projectId: project.id,
+        title: title || 'KI-Vorschlag',
+        description: content.slice(0, 2000),
+        category: 'design',
+        priority: 'medium',
+        milestone: 'MVP',
+      });
+      setTaskNote(`Aufgabe erstellt: „${title}" – jetzt auf dem Aufgabenboard.`);
+      setTimeout(() => setTaskNote(null), 5000);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -218,17 +273,39 @@ export function CodeAgentView(): React.JSX.Element {
             ) : null}
             {messages?.map((message) => (
               <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                    message.role === 'user' ? 'bg-forge-500/20 text-mist-100' : 'bg-ink-700 text-mist-200'
-                  }`}
-                >
-                  {message.content}
+                <div className="max-w-[85%]">
+                  <div
+                    className={`whitespace-pre-wrap rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                      message.role === 'user' ? 'bg-forge-500/20 text-mist-100' : 'bg-ink-700 text-mist-200'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                  {message.role === 'assistant' ? (
+                    <button
+                      className="mt-1 inline-flex items-center gap-1 text-[11px] text-mist-500 hover:text-forge-300"
+                      onClick={() => void saveAsTask(message.content)}
+                      title="Erstellt eine Aufgabe auf dem Board aus dieser Antwort"
+                    >
+                      <ListPlus className="h-3 w-3" /> Als Aufgabe speichern
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
+            {streaming ? (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-xl bg-ink-700 px-3 py-2 text-sm leading-relaxed text-mist-200">
+                  {streaming.text}
+                  <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-forge-400 align-text-bottom" />
+                </div>
+              </div>
+            ) : null}
             <div ref={chatEndRef} />
           </div>
+          {taskNote ? (
+            <div className="mt-2 rounded-lg border border-good/40 bg-good/10 px-3 py-1.5 text-xs text-good">{taskNote}</div>
+          ) : null}
           <div className="mt-3 flex items-end gap-2 border-t border-ink-600 pt-3">
             <textarea
               className="input max-h-32 min-h-10 flex-1 resize-none"
@@ -243,9 +320,15 @@ export function CodeAgentView(): React.JSX.Element {
                 }
               }}
             />
-            <button className="btn-primary" onClick={() => void send()} disabled={sending || !input.trim()}>
-              <Send className="h-4 w-4" />
-            </button>
+            {sending ? (
+              <button className="btn-danger" onClick={() => void stopStreaming()} title="Antwort stoppen">
+                <Square className="h-4 w-4" /> Stopp
+              </button>
+            ) : (
+              <button className="btn-primary" onClick={() => void send()} disabled={!input.trim()}>
+                <Send className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </Card>
 

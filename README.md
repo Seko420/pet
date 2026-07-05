@@ -28,7 +28,7 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 | **Checklisten** | Release, App-Store, Datenschutz, Roblox-Publishing, faire Monetarisierung — mit Pflicht-Gates |
 | **Secrets** | API-Keys (Roblox Open Cloud, Anthropic) verschlüsselt via OS-`safeStorage`, nie im Klartext, nie im Code |
 
-**KI-Anbindung (Provider-Schicht):** Alle Generatoren funktionieren offline über deterministische Engines (Templates + Heuristiken). Optional wählst du in den Einstellungen einen KI-Anbieter — **Anthropic (Claude)**, **OpenAI** oder eine **eigene OpenAI-kompatible API** (LM Studio, Ollama, OpenRouter…) — und hinterlegst den passenden Key. Damit werden Ideen-Verfeinerung, Code-Agent-Pläne und Commit-Vorschläge durch echte KI ersetzt. Ohne Key zeigt die App ehrlich den Mock-Modus an; neue Anbieter sind über das `AiProvider`-Interface in `packages/ai-kit` mit einer Factory anschließbar.
+**KI-Anbindung (Provider-Schicht):** Alle Generatoren funktionieren offline über deterministische Engines (Templates + Heuristiken). Optional wählst du in den Einstellungen einen KI-Anbieter — **Anthropic (Claude)**, **OpenAI** oder eine **eigene OpenAI-kompatible API** (LM Studio/Ollama = **kostenlos & lokal**, siehe [docs/KI-SETUP.md](docs/KI-SETUP.md)) — inkl. **Verbindungstest**, Modell-/Temperatur-/Token-Einstellungen und Kostenhinweisen. Damit kommen dazu: **echte KI-Spielideen** (Idea Lab ✨), **GDD-Sektionen mit KI verbessern**, **KI-Qualitäts-Tiefenanalyse**, **KI-Aufgabenplanung**, der **Code-Agent** und der **Projekt-Chat mit Live-Streaming + Stopp-Knopf** (der Chat kennt GDD, Aufgaben und Scores deines Projekts). Ohne Key zeigt die App ehrlich den Mock-Modus an; neue Anbieter sind über das `AiProvider`-Interface in `packages/ai-kit` mit einer Factory anschließbar. Anfragen werden lokal nur als Metadaten protokolliert (nie Inhalte, nie Schlüssel).
 
 ### Funktionsstatus (ehrlich)
 
@@ -38,7 +38,8 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 | Roblox: Rojo/Luau-Scaffold, Validierung, rojo build/serve, Open-Cloud-Publishing mit Gates | **Implementiert** (Publishing braucht eigenen API-Key; rojo/Studio lokal installiert) |
 | Mobile: Godot-Projektgenerator, Budgets, Export-Anleitung | **Implementiert** (Android-Export läuft über den Godot-Editor) |
 | Secrets (safeStorage), Backups, Projekt-Export/-Import, Logs | **Implementiert** |
-| KI-Features (Chat, Agent-Pläne, Ideen-Verfeinerung, Commit-Vorschläge) | **Implementiert mit Key** / **Mock-Modus ohne Key** |
+| KI-Features (Streaming-Chat mit Projektkontext, KI-Ideen, GDD-Verbesserung, Qualitäts-Tiefenanalyse, KI-Aufgabenplan, Agent-Pläne, Commit-Vorschläge, Verbindungstest) | **Implementiert mit Key/lokaler KI** / **Mock-Modus ohne Key** |
+| Editierbare Prompt-Vorlagen im UI | **Vorbereitet** (Prompts zentral in `packages/ai-kit/src/prompts.ts`) |
 | Automatisierte Android-Build-Pipeline, DataStore-Browser, Asset-Manager mit Vorschau | **Späterer Ausbau** (Roadmap, Adapter-Schnitte vorhanden) |
 | Auto-Updates, Code-Signierung, Team-Features/Cloud-Sync | **Vorbereitet** (Architektur ausgelegt, siehe docs/RELEASE.md) |
 

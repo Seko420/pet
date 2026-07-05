@@ -42,21 +42,48 @@ export interface AiProvider {
   readonly name: string;
   status(): Promise<AiProviderStatus>;
   complete(request: AiCompletionRequest): Promise<AiCompletionResult>;
+  /**
+   * Streamed completion: onDelta receives text chunks as they arrive; the
+   * returned result contains the full text. Abortable via `signal`
+   * (throws AiProviderError kind 'aborted'). All built-in providers
+   * implement this - including the mock (chunked), so the UI can be
+   * developed offline.
+   */
+  completeStream(
+    request: AiCompletionRequest,
+    onDelta: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AiCompletionResult>;
 }
+
+export type AiErrorKind =
+  | 'not_configured'
+  | 'auth'
+  | 'rate_limit'
+  | 'network'
+  | 'invalid_response'
+  | 'aborted'
+  | 'unknown';
 
 export class AiProviderError extends Error {
   constructor(
     message: string,
-    public readonly kind:
-      | 'not_configured'
-      | 'auth'
-      | 'rate_limit'
-      | 'network'
-      | 'invalid_response'
-      | 'unknown',
+    public readonly kind: AiErrorKind,
     public readonly retryable: boolean,
   ) {
     super(message);
     this.name = 'AiProviderError';
   }
+}
+
+/** Maps fetch/abort failures uniformly for all providers. */
+export function abortOrNetworkError(err: unknown, host: string): AiProviderError {
+  if (err instanceof Error && err.name === 'AbortError') {
+    return new AiProviderError('Anfrage abgebrochen.', 'aborted', false);
+  }
+  return new AiProviderError(
+    `Netzwerkfehler beim Kontaktieren von ${host}. Prüfe deine Internetverbindung.`,
+    'network',
+    true,
+  );
 }
