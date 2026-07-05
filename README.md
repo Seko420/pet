@@ -12,7 +12,7 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 
 | Modul | Was es kann |
 | --- | --- |
-| **KI-Chat (Startbildschirm)** | Claude-artige Oberfläche: Unterhaltungsliste links (Neuer Chat, umbenennen, löschen, Auto-Titel), Chat mit Live-Streaming, Stopp-Knopf und Markdown-Antworten in der Mitte; optional pro Chat ein Projekt verknüpfen (KI kennt dann GDD, Aufgaben, Scores) und Antworten als Aufgabe speichern |
+| **KI-Chat (Startbildschirm)** | Claude-artige Oberfläche: Unterhaltungsliste links (Neuer Chat, umbenennen, löschen, Auto-Titel), Chat mit Live-Streaming, Stopp-Knopf und Markdown-Antworten in der Mitte; optional pro Chat ein Projekt verknüpfen (KI kennt dann GDD, Aufgaben, Scores). Die KI kennt die App (eingebautes Handbuch) und kann per bestätigbarer Aktions-Karte direkt handeln: Aufgaben anlegen, GDD-Sektionen speichern, Projekte komplett anlegen, Ideen generieren — nichts läuft ohne deinen Klick |
 | **Dashboard** | Alle Projekte mit Status, Genre, Plattform, Fortschritt, Roblox-Verbindung, letzten Builds/Tests und Qualitäts-Score |
 | **Idea Lab** | Generiert vollständige Spielideen (Pitch, Core Loop, USP, Monetarisierung, Risiken, Erfolgs-/Scheiter-Analyse, verbesserte Variante) nach Genre, Plattform, Zielgruppe, Aufwand — deterministisch reproduzierbar per Seed |
 | **GDD-Generator** | Erzeugt ein vollständiges Game Design Document mit 21 Sektionen (Core Loop bis Full-Release-Scope), genre- und plattformspezifisch, editierbar, als Markdown exportierbar |

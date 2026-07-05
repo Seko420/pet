@@ -70,6 +70,8 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     'chat:deleteConversation': ({ conversationId }) => services.chat.delete(conversationId),
     'chat:messages': ({ conversationId }) => services.chat.messages(conversationId),
     'chat:sendStream': ({ conversationId, message }) => services.chat.sendStream(conversationId, message),
+    'chat:executeAction': ({ messageId, actionIndex }) => services.chat.executeAction(messageId, actionIndex),
+    'chat:rejectAction': ({ messageId, actionIndex }) => services.chat.rejectAction(messageId, actionIndex),
 
     // ------------------------------------------------------------- projects
     'projects:list': () => services.projects.list(),

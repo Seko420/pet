@@ -6,14 +6,22 @@ import type { NewProjectInput } from '@egf/core';
 import { openDatabase, type Db } from '../../db/database';
 import { SecretsService, type SecretsCipher } from '../secrets';
 import { ProjectsService } from '../projects';
-import { TasksService, ChecklistsService } from '../studio';
+import {
+  AnalyticsService,
+  ChecklistsService,
+  ContentService,
+  GddService,
+  IdeasService,
+  ScoresService,
+  TasksService,
+} from '../studio';
 import { FilesService } from '../files';
 import { RobloxService } from '../roblox';
 import { PlaytestsService } from '../playtests';
 import { TransferService } from '../transfer';
 import { SettingsService } from '../settings';
 import { AiService } from '../ai';
-import { ChatService } from '../chat';
+import { ChatService, parseChatActions } from '../chat';
 import type { OpenCloudClient } from '@egf/roblox-kit';
 
 const fakeCipher: SecretsCipher = {
@@ -225,14 +233,30 @@ describe('ai provider selection', () => {
 });
 
 describe('chat service (global, Claude-style)', () => {
-  function makeChat(): ChatService {
+  function makeChat(): { chat: ChatService; tasks: TasksService } {
     const secrets = new SecretsService(db, fakeCipher);
     const settings = new SettingsService(db);
-    return new ChatService(db, projects, new AiService(secrets, settings, db));
+    const ai = new AiService(secrets, settings, db);
+    const ideas = new IdeasService(db, ai);
+    const tasks = new TasksService(db, projects, ai);
+    const gdd = new GddService(db, projects, ideas, tempRoot, ai);
+    const scores = new ScoresService(projects, db, ai);
+    const analytics = new AnalyticsService(db, projects);
+    const content = new ContentService(db, projects);
+    return { chat: new ChatService(db, projects, ai, { tasks, gdd, ideas, scores, analytics, content }), tasks };
+  }
+
+  /** Simulates a persisted assistant reply with proposed actions. */
+  function insertAssistantMessage(conversationId: string, actionsJson: string): string {
+    const id = `cmsg_test_${Math.random().toString(36).slice(2)}`;
+    db.prepare(
+      'INSERT INTO ai_chat_messages (id, conversation_id, role, content, created_at, actions) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(id, conversationId, 'assistant', 'Vorschlag folgt.', new Date().toISOString(), actionsJson);
+    return id;
   }
 
   it('creates, renames, re-links and deletes conversations', () => {
-    const chat = makeChat();
+    const { chat } = makeChat();
     const project = projects.create(newProjectInput);
 
     const conversation = chat.create(null);
@@ -254,7 +278,7 @@ describe('chat service (global, Claude-style)', () => {
   });
 
   it('streams a reply in mock mode, persists both messages and auto-titles', async () => {
-    const chat = makeChat();
+    const { chat } = makeChat();
     const conversation = chat.create(null);
 
     const chunks: string[] = [];
@@ -282,6 +306,137 @@ describe('chat service (global, Claude-style)', () => {
     expect(listed.title).toBe('Wie balanciere ich meinen Tycoon-Shop?'.slice(0, 48));
     expect(listed.messageCount).toBe(2);
     expect(listed.lastSnippet).not.toBeNull();
+  });
+
+  it('parses egf-action blocks: strips the block, validates kinds, survives malformed JSON', () => {
+    const good = parseChatActions(
+      'Hier mein Plan.\n```egf-action\n{"actions":[' +
+        '{"kind":"create_task","title":"Shop-UI bauen","priority":"high","milestone":"MVP"},' +
+        '{"kind":"unbekannt","x":1},' +
+        '{"kind":"generate_ideas","count":99}' +
+        ']}\n```',
+    );
+    expect(good.content).toBe('Hier mein Plan.');
+    expect(good.actions).toHaveLength(2);
+    expect(good.actions[0]!.kind).toBe('create_task');
+    expect(good.actions[0]!.summary).toContain('Shop-UI bauen');
+    expect(good.actions[0]!.status).toBe('proposed');
+    expect(good.actions[1]!.summary).toContain('5 Spielideen'); // count clamped 1..5
+
+    const malformed = parseChatActions('Antwort.\n```egf-action\n{kaputt\n```');
+    expect(malformed.content).toBe('Antwort.');
+    expect(malformed.actions).toHaveLength(0);
+  });
+
+  it('executes a confirmed create_task action exactly once, on the linked project', async () => {
+    const { chat, tasks } = makeChat();
+    const project = projects.create(newProjectInput);
+    const conversation = chat.create(project.id);
+    const messageId = insertAssistantMessage(
+      conversation.id,
+      JSON.stringify([
+        {
+          kind: 'create_task',
+          summary: 'Aufgabe anlegen: „Boss-Kampf designen"',
+          params: { kind: 'create_task', title: 'Boss-Kampf designen', category: 'design', priority: 'high', milestone: 'Beta' },
+          status: 'proposed',
+          resultNote: null,
+        },
+      ]),
+    );
+
+    const updated = await chat.executeAction(messageId, 0);
+    const executed = updated.find((m) => m.id === messageId)!.actions[0]!;
+    expect(executed.status).toBe('executed');
+    expect(executed.resultNote).toContain('Boss-Kampf designen');
+    expect(tasks.listForProject(project.id).some((t) => t.title === 'Boss-Kampf designen' && t.priority === 'high')).toBe(true);
+    // The result is reported as a new assistant message.
+    expect(updated[updated.length - 1]!.content).toContain('✅');
+    // Double execution is refused.
+    await expect(chat.executeAction(messageId, 0)).rejects.toThrow(/bereits behandelt/);
+  });
+
+  it('fails honestly without a linked project and supports reject', async () => {
+    const { chat } = makeChat();
+    const conversation = chat.create(null);
+    const actionJson = JSON.stringify([
+      {
+        kind: 'create_task',
+        summary: 'Aufgabe anlegen: „X"',
+        params: { kind: 'create_task', title: 'X-Task' },
+        status: 'proposed',
+        resultNote: null,
+      },
+    ]);
+
+    const failId = insertAssistantMessage(conversation.id, actionJson);
+    const afterFail = await chat.executeAction(failId, 0);
+    const failed = afterFail.find((m) => m.id === failId)!.actions[0]!;
+    expect(failed.status).toBe('failed');
+    expect(failed.resultNote).toContain('Kein Projekt verknüpft');
+
+    const rejectId = insertAssistantMessage(conversation.id, actionJson);
+    const afterReject = chat.rejectAction(rejectId, 0);
+    expect(afterReject.find((m) => m.id === rejectId)!.actions[0]!.status).toBe('rejected');
+  });
+
+  it('save_gdd_section generates a missing GDD instead of failing', async () => {
+    const { chat } = makeChat();
+    const project = projects.create(newProjectInput); // no wizard pipeline -> no GDD yet
+    const conversation = chat.create(project.id);
+    const messageId = insertAssistantMessage(
+      conversation.id,
+      JSON.stringify([
+        {
+          kind: 'save_gdd_section',
+          summary: 'GDD-Sektion überschreiben: „Monetarisierung"',
+          params: { kind: 'save_gdd_section', sectionId: 'monetization', markdown: '## Faire Monetarisierung\nNur Cosmetics und 2 Game Passes.' },
+          status: 'proposed',
+          resultNote: null,
+        },
+      ]),
+    );
+    const updated = await chat.executeAction(messageId, 0);
+    expect(updated.find((m) => m.id === messageId)!.actions[0]!.status).toBe('executed');
+    const gddRow = db.prepare('SELECT data FROM gdds WHERE project_id = ?').get(project.id) as { data: string };
+    const doc = JSON.parse(gddRow.data) as { sections: { id: string; markdown: string }[] };
+    expect(doc.sections.find((s) => s.id === 'monetization')!.markdown).toContain('Faire Monetarisierung');
+  });
+
+  it('creates a full project via action and links the conversation to it', async () => {
+    const { chat } = makeChat();
+    const conversation = chat.create(null);
+    const messageId = insertAssistantMessage(
+      conversation.id,
+      JSON.stringify([
+        {
+          kind: 'create_project',
+          summary: 'Neues Projekt anlegen: „Pet Paradise"',
+          params: {
+            kind: 'create_project',
+            name: 'Pet Paradise',
+            platform: 'roblox',
+            genre: 'simulator',
+            audience: 'kids_8_12',
+            monetization: ['game_passes', 'quatsch'],
+            multiplayer: true,
+          },
+          status: 'proposed',
+          resultNote: null,
+        },
+      ]),
+    );
+
+    const updated = await chat.executeAction(messageId, 0);
+    expect(updated.find((m) => m.id === messageId)!.actions[0]!.status).toBe('executed');
+    const created = projects.list().find((p) => p.name === 'Pet Paradise');
+    expect(created).toBeDefined();
+    expect(created!.monetization).toEqual(['game_passes']); // invalid entries filtered
+    // Wizard pipeline ran: board + GDD exist.
+    expect(db.prepare('SELECT COUNT(*) AS c FROM tasks WHERE project_id = ?').get(created!.id)).toMatchObject({ c: expect.any(Number) });
+    expect(db.prepare('SELECT COUNT(*) AS c FROM gdds WHERE project_id = ?').get(created!.id)).toMatchObject({ c: 1 });
+    // Conversation is now linked to the new project.
+    expect(chat.list()[0]!.projectId).toBe(created!.id);
   });
 });
 

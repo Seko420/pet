@@ -83,7 +83,7 @@ export function createServices(
   const roblox = new RobloxService(projects, secrets);
   const mobile = new MobileService(projects);
   const agent = new AgentService(db, projects, files, ai);
-  const chat = new ChatService(db, projects, ai);
+  const chat = new ChatService(db, projects, ai, { tasks, gdd, ideas, scores, analytics, content });
   const git = new GitService(projects, ai);
   const build = new BuildService(db, projects, roblox);
   const playtests = new PlaytestsService(db, projects, tasks);

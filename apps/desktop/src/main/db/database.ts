@@ -158,6 +158,12 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX idx_ai_chat_messages_conv ON ai_chat_messages(conversation_id, created_at);
     `,
   },
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE ai_chat_messages ADD COLUMN actions TEXT;
+    `,
+  },
 ];
 
 export type Db = BetterSqlite3.Database;

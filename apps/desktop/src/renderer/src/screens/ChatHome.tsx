@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import type { GameProject } from '@egf/core';
-import type { AiStatusInfo, ChatConversation, ChatMessage } from '@shared/ipc';
+import type { AiStatusInfo, ChatAction, ChatConversation, ChatMessage } from '@shared/ipc';
 import { api } from '../lib/api';
 import { Markdown } from '../components/Markdown';
 import { ErrorNote, Spinner } from '../components/ui';
@@ -119,6 +119,53 @@ function ConversationItem({
   );
 }
 
+const ACTION_STATUS: Record<ChatAction['status'], { label: string; className: string }> = {
+  proposed: { label: 'Wartet auf deine Freigabe', className: 'text-warn' },
+  executed: { label: 'Ausgeführt', className: 'text-good' },
+  rejected: { label: 'Abgelehnt', className: 'text-mist-500' },
+  failed: { label: 'Fehlgeschlagen', className: 'text-bad' },
+};
+
+/** Confirmation card for ONE AI-proposed app action (Claude-style tool use:
+ * the AI proposes, the user clicks, the server validates and executes). */
+function ActionCard({
+  action,
+  busy,
+  onExecute,
+  onReject,
+}: {
+  action: ChatAction;
+  busy: boolean;
+  onExecute: () => void;
+  onReject: () => void;
+}): React.JSX.Element {
+  const status = ACTION_STATUS[action.status];
+  return (
+    <div className="mt-2 rounded-xl border border-ink-500 bg-ink-850 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm text-mist-100">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-forge-300" />
+            <span className="truncate">{action.summary}</span>
+          </p>
+          <p className={`mt-0.5 text-[11px] ${status.className}`}>{status.label}</p>
+          {action.resultNote ? <p className="mt-1 text-xs text-mist-400">{action.resultNote}</p> : null}
+        </div>
+        {action.status === 'proposed' ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button className="btn-primary px-2.5 py-1 text-xs" disabled={busy} onClick={onExecute}>
+              <Check className="h-3.5 w-3.5" /> Ausführen
+            </button>
+            <button className="btn-secondary px-2.5 py-1 text-xs" disabled={busy} onClick={onReject}>
+              <X className="h-3.5 w-3.5" /> Ablehnen
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ChatInput({
   value,
   onChange,
@@ -197,6 +244,7 @@ export function ChatHome(): React.JSX.Element {
   const [streaming, setStreaming] = useState<StreamState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [taskNote, setTaskNote] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const active = conversations?.find((c) => c.id === activeId) ?? null;
@@ -283,6 +331,7 @@ export function ChatHome(): React.JSX.Element {
         role: 'user',
         content: text,
         createdAt: new Date().toISOString(),
+        actions: [],
       },
     ]);
     try {
@@ -330,6 +379,24 @@ export function ChatHome(): React.JSX.Element {
       setConversations((prev) => (prev ?? []).map((c) => (c.id === active.id ? updated : c)));
     } catch (err) {
       setError((err as Error).message);
+    }
+  };
+
+  const handleAction = async (messageId: string, actionIndex: number, execute: boolean): Promise<void> => {
+    setActionBusy(true);
+    setError(null);
+    try {
+      const channel = execute ? 'chat:executeAction' : 'chat:rejectAction';
+      const updated = await api.invoke(channel, { messageId, actionIndex });
+      setMessages(updated);
+      loadConversations(); // Projekt-Verknüpfung/Reihenfolge kann sich geändert haben.
+      if (execute) {
+        api.invoke('projects:list', undefined).then(setProjects).catch(() => undefined);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -471,6 +538,15 @@ export function ChatHome(): React.JSX.Element {
                   ) : (
                     <div key={message.id} className="group">
                       <Markdown text={message.content} />
+                      {message.actions.map((action, index) => (
+                        <ActionCard
+                          key={index}
+                          action={action}
+                          busy={actionBusy}
+                          onExecute={() => void handleAction(message.id, index, true)}
+                          onReject={() => void handleAction(message.id, index, false)}
+                        />
+                      ))}
                       {active?.projectId ? (
                         <button
                           className="mt-1 inline-flex items-center gap-1 text-[11px] text-mist-500 opacity-0 transition-opacity hover:text-forge-300 group-hover:opacity-100"

@@ -86,12 +86,29 @@ export interface ChatConversation {
   lastSnippet: string | null;
 }
 
+/** App actions the chat AI may PROPOSE; the user confirms, the server
+ * validates and executes. Nothing runs without an explicit click. */
+export type ChatActionKind = 'create_task' | 'save_gdd_section' | 'create_project' | 'generate_ideas';
+
+export interface ChatAction {
+  kind: ChatActionKind;
+  /** German one-line summary shown on the confirmation card. */
+  summary: string;
+  /** Raw parameters as proposed by the AI - validated server-side on execute. */
+  params: Record<string, unknown>;
+  status: 'proposed' | 'executed' | 'rejected' | 'failed';
+  /** Success or error note after execution. */
+  resultNote: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  /** Actions proposed by this assistant message (empty for user messages). */
+  actions: ChatAction[];
 }
 
 /** Result of a one-shot AI quality review of a project. */
@@ -275,6 +292,9 @@ export interface IpcChannelMap {
    * arrive via 'event:aiChunk', completion via 'event:aiDone'.
    */
   'chat:sendStream': { req: { conversationId: string; message: string }; res: { requestId: string } };
+  /** Executes ONE user-confirmed AI action; returns the updated history. */
+  'chat:executeAction': { req: { messageId: string; actionIndex: number }; res: ChatMessage[] };
+  'chat:rejectAction': { req: { messageId: string; actionIndex: number }; res: ChatMessage[] };
 
   'app:createBackup': { req: undefined; res: BackupInfo };
   'app:listBackups': { req: undefined; res: BackupInfo[] };

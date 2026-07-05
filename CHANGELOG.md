@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### App-angepasste Studio-KI (Aktionen mit Freigabe)
+- Die Chat-KI kennt jetzt die App selbst (eingebautes Handbuch im System-Prompt): sie erklärt Klickwege, Publishing-Gates und Einstellungen korrekt statt generisch zu raten
+- Die KI kann Dinge in der App TUN — sie schlägt Aktionen vor, du bestätigst per Knopf: Aufgaben anlegen, GDD-Sektionen speichern (erzeugt fehlendes GDD automatisch), komplettes Projekt anlegen (inkl. Aufgabenplan/GDD/Scores/Analytics/Content, Chat wird verknüpft), Spielideen generieren
+- Jede Aktion wird serverseitig validiert (Genre-/Kategorie-/Prioritäts-Whitelists), einzeln bestätigt, kann abgelehnt werden und läuft höchstens einmal; Ergebnis oder Fehler erscheint ehrlich als Chat-Nachricht
+- Aktions-Karten im Chat mit Status (Wartet auf Freigabe / Ausgeführt / Abgelehnt / Fehlgeschlagen); DB-Migration v6
+
 ### KI-Chat als Startbildschirm (Claude-artige Struktur)
 - Die App öffnet jetzt direkt im KI-Chat: links die Liste aller Unterhaltungen („Neuer Chat", umbenennen, löschen, Auto-Titel aus der ersten Nachricht, Vorschau der letzten Antwort), in der Mitte der Chat
 - Jede Unterhaltung kann optional mit einem Projekt verknüpft werden — die KI kennt dann GDD, Aufgabenstand und Scores; „Als Aufgabe speichern" direkt aus der Antwort

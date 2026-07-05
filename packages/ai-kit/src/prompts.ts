@@ -63,6 +63,35 @@ export function buildGddSectionPrompt(
 }
 
 /**
+ * Compact in-app manual so the chat AI is a real product expert for
+ * Empire Game Forge (not a generic assistant). Kept short to bound tokens.
+ */
+const APP_GUIDE =
+  'DIE APP (Empire Game Forge AI), in der du läufst:\n' +
+  '- KI-Chat (Startbildschirm): Unterhaltungen links, oben rechts kann der Nutzer ein Projekt verknüpfen - dann kennst du GDD, Aufgaben und Scores.\n' +
+  '- Dashboard: alle Projekte mit Status, Fortschritt und Scores. Neues Projekt: 3-Schritte-Assistent, erzeugt automatisch Aufgabenplan, GDD, Scores, Analytics- und Content-Plan.\n' +
+  '- Idea Lab: Spielideen-Generator (offline-Engine, optional echte KI per ✨-Schalter).\n' +
+  '- Pro Projekt: Übersicht | GDD (21 Sektionen, editierbar, "Mit KI verbessern") | Aufgaben-Board (Kanban, "KI-Aufgaben"-Knopf) | Code-Agent (Ziel → Plan → Freigabe → Anwendung, ändert nie blind) | Dateien (Editor) | Roblox (Rojo-Projekt generieren, validieren, bauen; Open-Cloud-Publishing NUR über Gates: Validierung → Build → Dry-Run → getippte Bestätigung) | Mobile (Godot-4-Projekt) | Content | Analytics/LiveOps | Checklisten | Scores (+ KI-Tiefenanalyse) | Monetarisierungs-Simulator | Playtests.\n' +
+  '- Einstellungen: KI-Anbindung (Anthropic/OpenAI/eigene API wie LM Studio, Ollama oder Groq; "Verbindung testen"), API-Schlüssel (verschlüsselt gespeichert, nie anzeigbar), Backups, Projekt-Export/-Import.\n' +
+  'Wenn der Nutzer fragt, wie etwas in der App geht: Erkläre den konkreten Klickweg.';
+
+/**
+ * Action protocol: the AI may PROPOSE app actions as a fenced JSON block;
+ * the app renders confirmation cards and executes only after a user click.
+ */
+const ACTION_PROTOCOL =
+  'AKTIONEN IN DER APP: Wenn der Nutzer will, dass du etwas in der App anlegst oder änderst, hänge ans ENDE deiner Antwort GENAU EINEN Block in dieser Form an:\n' +
+  '```egf-action\n{"actions":[{...}]}\n```\n' +
+  'Erlaubte Aktionen (maximal 8 pro Antwort):\n' +
+  '- {"kind":"create_task","title":string(max 70),"description":string,"category":"design"|"code"|"art"|"audio"|"ui_ux"|"monetization"|"liveops"|"analytics"|"qa"|"publishing"|"marketing"|"infrastructure","priority":"low"|"medium"|"high"|"critical","milestone":"MVP"|"Beta"|"Release"} (braucht verknüpftes Projekt)\n' +
+  '- {"kind":"save_gdd_section","sectionId":"overview"|"story_setting"|"core_loop"|"progression"|"level_design"|"economy"|"items"|"enemies"|"quests"|"multiplayer"|"ui_ux"|"monetization"|"liveops"|"events"|"analytics"|"balancing"|"roblox_implementation"|"mobile_implementation"|"technical_architecture"|"mvp_scope"|"full_release_scope","markdown":string(vollständiger neuer Sektionstext)} (braucht verknüpftes Projekt)\n' +
+  '- {"kind":"create_project","name":string,"platform":"roblox"|"mobile"|"both","genre":string(Genre-ID),"audience":"kids_8_12"|"teens_13_17"|"young_adults_18_24"|"adults_25_plus"|"family"|"core_gamers"|"casual_broad","monetization":[string],"description":string,"multiplayer":boolean}\n' +
+  '- {"kind":"generate_ideas","count":number(1-5),"genres":[string],"themeHints":string,"platform":"roblox"|"mobile"|"both"}\n' +
+  'Regeln: Der Nutzer bestätigt jede Aktion einzeln per Knopf - führe nichts selbst aus und behaupte nie, etwas sei schon ausgeführt. ' +
+  'Ist KEIN Projekt verknüpft und die Aktion braucht eins, schlage die Aktion NICHT vor, sondern bitte den Nutzer, oben rechts ein Projekt zu wählen. ' +
+  'Schlage Aktionen nur vor, wenn der Nutzer erkennbar etwas anlegen/ändern will - nicht bei reinen Wissensfragen.';
+
+/**
  * System prompt for the global, Claude-style studio chat. Works with or
  * without a linked project; encodes the studio's hard security rules.
  */
@@ -76,8 +105,13 @@ export function buildStudioChatSystem(project?: GameProject | null): string {
     'Verlange nie Roblox-Cookies (.ROBLOSECURITY) - nur offizielle Open-Cloud-APIs. ' +
     'Keine urheberrechtlich geschützten Marken kopieren, keine garantierten Einnahmen versprechen, ' +
     'faire Monetarisierung ohne Dark Patterns. Veröffentlichungen laufen nur über den abgesicherten Weg in der App. ' +
-    'Wenn du etwas nicht sicher weißt, sag es ehrlich.' +
-    (project ? `\n\nDer Nutzer arbeitet gerade an diesem Projekt:\n${projectBrief(project)}` : '')
+    'Wenn du etwas nicht sicher weißt, sag es ehrlich.\n\n' +
+    APP_GUIDE +
+    '\n\n' +
+    ACTION_PROTOCOL +
+    (project
+      ? `\n\nAKTUELL VERKNÜPFTES PROJEKT:\n${projectBrief(project)}`
+      : '\n\nAktuell ist KEIN Projekt mit diesem Chat verknüpft.')
   );
 }
 
