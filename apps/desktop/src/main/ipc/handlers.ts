@@ -56,7 +56,20 @@ export function buildHandlers(services: Services, ops: PlatformOps): HandlerMap 
     'ai:getConfig': () => services.ai.getConfig(),
     'ai:setConfig': (config) => services.ai.setConfig(config),
     'ai:testConnection': () => services.ai.testConnection(),
-    'ai:abort': ({ requestId }) => services.agent.abort(requestId),
+    'ai:abort': ({ requestId }) => {
+      // The requestId is unique across services; aborting an unknown id is a no-op.
+      services.agent.abort(requestId);
+      services.chat.abort(requestId);
+    },
+
+    // ----------------------------------------------------------- global chat
+    'chat:listConversations': () => services.chat.list(),
+    'chat:createConversation': ({ projectId }) => services.chat.create(projectId),
+    'chat:renameConversation': ({ conversationId, title }) => services.chat.rename(conversationId, title),
+    'chat:setProject': ({ conversationId, projectId }) => services.chat.setProject(conversationId, projectId),
+    'chat:deleteConversation': ({ conversationId }) => services.chat.delete(conversationId),
+    'chat:messages': ({ conversationId }) => services.chat.messages(conversationId),
+    'chat:sendStream': ({ conversationId, message }) => services.chat.sendStream(conversationId, message),
 
     // ------------------------------------------------------------- projects
     'projects:list': () => services.projects.list(),

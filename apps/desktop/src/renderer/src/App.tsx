@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/Shell';
+import { ChatHome } from './screens/ChatHome';
 import { Dashboard } from './screens/Dashboard';
 import { IdeaLab } from './screens/IdeaLab';
 import { NewProjectWizard } from './screens/NewProjectWizard';
@@ -24,7 +25,8 @@ export default function App(): React.JSX.Element {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<ChatHome />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="ideas" element={<IdeaLab />} />
         <Route path="projects/new" element={<NewProjectWizard />} />
         <Route path="settings" element={<Settings />} />

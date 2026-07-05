@@ -13,6 +13,7 @@ import { PlaytestsService } from '../playtests';
 import { TransferService } from '../transfer';
 import { SettingsService } from '../settings';
 import { AiService } from '../ai';
+import { ChatService } from '../chat';
 import type { OpenCloudClient } from '@egf/roblox-kit';
 
 const fakeCipher: SecretsCipher = {
@@ -220,6 +221,67 @@ describe('ai provider selection', () => {
     secrets.set('Custom', 'custom_ai', 'ck-test-123456');
     ai.invalidate();
     expect(ai.getProvider().name).toBe('mock');
+  });
+});
+
+describe('chat service (global, Claude-style)', () => {
+  function makeChat(): ChatService {
+    const secrets = new SecretsService(db, fakeCipher);
+    const settings = new SettingsService(db);
+    return new ChatService(db, projects, new AiService(secrets, settings, db));
+  }
+
+  it('creates, renames, re-links and deletes conversations', () => {
+    const chat = makeChat();
+    const project = projects.create(newProjectInput);
+
+    const conversation = chat.create(null);
+    expect(conversation.title).toBe('Neuer Chat');
+    expect(conversation.projectId).toBeNull();
+    expect(chat.list()).toHaveLength(1);
+
+    expect(() => chat.rename(conversation.id, '   ')).toThrow(/leer/);
+    expect(chat.rename(conversation.id, 'Boss-Design').title).toBe('Boss-Design');
+
+    expect(chat.setProject(conversation.id, project.id).projectId).toBe(project.id);
+    // Deleting the project unlinks the chat instead of deleting it.
+    projects.delete(project.id);
+    expect(chat.list()[0]!.projectId).toBeNull();
+
+    chat.delete(conversation.id);
+    expect(chat.list()).toHaveLength(0);
+    expect(() => chat.messages(conversation.id)).toThrow(/nicht gefunden/);
+  });
+
+  it('streams a reply in mock mode, persists both messages and auto-titles', async () => {
+    const chat = makeChat();
+    const conversation = chat.create(null);
+
+    const chunks: string[] = [];
+    const done = new Promise<{ ok: boolean; conversationId: string }>((resolvePromise) => {
+      chat.setSink((event) => {
+        if (event.type === 'chunk') chunks.push(event.payload.delta);
+        else resolvePromise({ ok: event.payload.ok, conversationId: event.payload.conversationId });
+      });
+    });
+
+    const { requestId } = chat.sendStream(conversation.id, 'Wie balanciere ich meinen Tycoon-Shop?');
+    expect(requestId).toMatch(/^req/);
+    const result = await done;
+    expect(result.ok).toBe(true);
+    expect(result.conversationId).toBe(conversation.id);
+    expect(chunks.length).toBeGreaterThan(0);
+
+    const messages = chat.messages(conversation.id);
+    expect(messages).toHaveLength(2);
+    expect(messages[0]!.role).toBe('user');
+    expect(messages[1]!.role).toBe('assistant');
+    expect(messages[1]!.content.length).toBeGreaterThan(0);
+
+    const listed = chat.list()[0]!;
+    expect(listed.title).toBe('Wie balanciere ich meinen Tycoon-Shop?'.slice(0, 48));
+    expect(listed.messageCount).toBe(2);
+    expect(listed.lastSnippet).not.toBeNull();
   });
 });
 

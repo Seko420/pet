@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### KI-Chat als Startbildschirm (Claude-artige Struktur)
+- Die App öffnet jetzt direkt im KI-Chat: links die Liste aller Unterhaltungen („Neuer Chat", umbenennen, löschen, Auto-Titel aus der ersten Nachricht, Vorschau der letzten Antwort), in der Mitte der Chat
+- Jede Unterhaltung kann optional mit einem Projekt verknüpft werden — die KI kennt dann GDD, Aufgabenstand und Scores; „Als Aufgabe speichern" direkt aus der Antwort
+- KI-Antworten werden als formatiertes Markdown angezeigt (Überschriften, Listen, Tabellen, Code-Blöcke mit Sprach-Label) — gemeinsamer, sicherer Renderer mit dem GDD-Viewer
+- Live-Streaming mit Stopp-Knopf, automatisch wachsendes Eingabefeld (Enter = senden), zentrierter Startbildschirm („Womit legen wir los?")
+- Dashboard bleibt vollständig erhalten und wandert auf den zweiten Navigationspunkt
+- Neue Tabellen ai_conversations/ai_chat_messages (DB-Migration v5); Chats überleben das Löschen eines Projekts (Verknüpfung wird nur gelöst)
+
 ### Echte KI-Integration
 - Live-Streaming im Projekt-Chat (Text erscheint während des Schreibens) mit Stopp-Knopf, in Desktop- UND Web-Modus (SSE); Chat kennt jetzt GDD-Überblick, Aufgabenstand und Scores des Projekts
 - „Verbindung testen" für die KI (echter Mini-Request), Modell-, Temperatur- und Max-Tokens-Einstellungen, Kosten- und Kostenlos-Hinweise

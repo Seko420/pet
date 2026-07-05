@@ -16,6 +16,7 @@ import { FilesService } from './files';
 import { RobloxService } from './roblox';
 import { MobileService } from './mobile';
 import { AgentService } from './agent';
+import { ChatService } from './chat';
 import { GitService } from './git';
 import { BuildService } from './build';
 import { PlaytestsService } from './playtests';
@@ -43,6 +44,7 @@ export interface Services {
   roblox: RobloxService;
   mobile: MobileService;
   agent: AgentService;
+  chat: ChatService;
   git: GitService;
   build: BuildService;
   playtests: PlaytestsService;
@@ -81,6 +83,7 @@ export function createServices(
   const roblox = new RobloxService(projects, secrets);
   const mobile = new MobileService(projects);
   const agent = new AgentService(db, projects, files, ai);
+  const chat = new ChatService(db, projects, ai);
   const git = new GitService(projects, ai);
   const build = new BuildService(db, projects, roblox);
   const playtests = new PlaytestsService(db, projects, tasks);
@@ -107,6 +110,7 @@ export function createServices(
     roblox,
     mobile,
     agent,
+    chat,
     git,
     build,
     playtests,

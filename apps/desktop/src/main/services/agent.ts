@@ -14,6 +14,45 @@ type AgentStreamSink = (
 ) => void;
 
 /**
+ * Compact project context (GDD overview, board state, scores) injected into
+ * chat system prompts so answers are grounded in THIS project. Shared by the
+ * per-project Code-Agent chat and the global studio chat. Best-effort: never
+ * throws, size-bounded to keep token usage predictable.
+ */
+export function buildProjectContextSnippet(db: Db, projects: ProjectsService, projectId: string): string {
+  const parts: string[] = [];
+  try {
+    const gddRow = db.prepare('SELECT data FROM gdds WHERE project_id = ?').get(projectId) as
+      | { data: string }
+      | undefined;
+    if (gddRow) {
+      const gdd = JSON.parse(gddRow.data) as { sections: { id: string; markdown: string }[] };
+      const overview = gdd.sections.find((s) => s.id === 'overview');
+      if (overview) parts.push(`GDD-ÜBERBLICK:\n${overview.markdown.slice(0, 700)}`);
+    }
+    const taskRows = db
+      .prepare("SELECT data FROM tasks WHERE project_id = ? AND status != 'done' ORDER BY sort_order LIMIT 6")
+      .all(projectId) as { data: string }[];
+    const counts = db
+      .prepare("SELECT SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done, COUNT(*) AS total FROM tasks WHERE project_id = ?")
+      .get(projectId) as { done: number | null; total: number };
+    if (counts.total > 0) {
+      const titles = taskRows.map((r) => `- ${(JSON.parse(r.data) as { title: string }).title}`);
+      parts.push(`AUFGABEN (${counts.done ?? 0}/${counts.total} erledigt), nächste offene:\n${titles.join('\n')}`);
+    }
+    const project = projects.get(projectId);
+    if (project?.scores) {
+      parts.push(
+        `SCORES: Gesamt ${project.scores.overall}/100, Fun ${project.scores.fun.value}, Retention ${project.scores.retention.value}, Monetarisierung ${project.scores.monetization.value}`,
+      );
+    }
+  } catch {
+    /* context is best-effort - never block the chat */
+  }
+  return parts.length > 0 ? `\n\nAKTUELLER PROJEKT-KONTEXT:\n${parts.join('\n\n')}` : '';
+}
+
+/**
  * Code Agent backend. The loop is fixed and non-negotiable:
  * goal -> plan (AI) -> awaiting_approval -> (user approves) -> apply with
  * undo snapshots -> summarize. A failed apply rolls back everything.
@@ -39,44 +78,6 @@ export class AgentService {
     this.activeStreams.delete(requestId);
   }
 
-  /**
-   * Project context injected into the chat system prompt so answers are
-   * grounded in THIS project (GDD, board state, scores) - kept small to
-   * bound token usage.
-   */
-  private buildProjectContext(projectId: string): string {
-    const parts: string[] = [];
-    try {
-      const gddRow = this.db.prepare('SELECT data FROM gdds WHERE project_id = ?').get(projectId) as
-        | { data: string }
-        | undefined;
-      if (gddRow) {
-        const gdd = JSON.parse(gddRow.data) as { sections: { id: string; markdown: string }[] };
-        const overview = gdd.sections.find((s) => s.id === 'overview');
-        if (overview) parts.push(`GDD-ÜBERBLICK:\n${overview.markdown.slice(0, 700)}`);
-      }
-      const taskRows = this.db
-        .prepare("SELECT data FROM tasks WHERE project_id = ? AND status != 'done' ORDER BY sort_order LIMIT 6")
-        .all(projectId) as { data: string }[];
-      const counts = this.db
-        .prepare("SELECT SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done, COUNT(*) AS total FROM tasks WHERE project_id = ?")
-        .get(projectId) as { done: number | null; total: number };
-      if (counts.total > 0) {
-        const titles = taskRows.map((r) => `- ${(JSON.parse(r.data) as { title: string }).title}`);
-        parts.push(`AUFGABEN (${counts.done ?? 0}/${counts.total} erledigt), nächste offene:\n${titles.join('\n')}`);
-      }
-      const project = this.projects.get(projectId);
-      if (project?.scores) {
-        parts.push(
-          `SCORES: Gesamt ${project.scores.overall}/100, Fun ${project.scores.fun.value}, Retention ${project.scores.retention.value}, Monetarisierung ${project.scores.monetization.value}`,
-        );
-      }
-    } catch {
-      /* context is best-effort - never block the chat */
-    }
-    return parts.length > 0 ? `\n\nAKTUELLER PROJEKT-KONTEXT:\n${parts.join('\n\n')}` : '';
-  }
-
   // ------------------------------------------------------------------ chat
 
   history(projectId: string): AgentChatMessage[] {
@@ -99,7 +100,7 @@ export class AgentService {
       .filter((m) => m.role !== 'system')
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
     return {
-      system: buildAgentChatSystem(project) + this.buildProjectContext(projectId),
+      system: buildAgentChatSystem(project) + buildProjectContextSnippet(this.db, this.projects, projectId),
       messages: historyMessages,
     };
   }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { Gamepad2, Hammer, Lightbulb, LayoutDashboard, Plus, Settings } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Gamepad2, Hammer, Lightbulb, LayoutDashboard, MessageSquare, Plus, Settings } from 'lucide-react';
 import { api } from '../lib/api';
 import type { AiStatusInfo } from '@shared/ipc';
 
@@ -39,6 +39,10 @@ function NavItem({
  */
 export function Shell(): React.JSX.Element {
   const [ai, setAi] = useState<AiStatusInfo | null>(null);
+  const location = useLocation();
+  // The chat home is a full-bleed screen (own columns + sticky input);
+  // every other screen gets the centered content container.
+  const fullBleed = location.pathname === '/';
 
   useEffect(() => {
     api.invoke('ai:status', undefined).then(setAi).catch(() => setAi(null));
@@ -60,7 +64,8 @@ export function Shell(): React.JSX.Element {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
-          <NavItem to="/" end icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
+          <NavItem to="/" end icon={<MessageSquare className="h-4 w-4" />} label="KI-Chat" />
+          <NavItem to="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
           <NavItem to="/ideas" icon={<Lightbulb className="h-4 w-4" />} label="Idea Lab" />
           <NavItem
             to="/projects/new"
@@ -86,10 +91,14 @@ export function Shell(): React.JSX.Element {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-6 py-6">
+      <main className={`min-w-0 flex-1 ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        {fullBleed ? (
           <Outlet />
-        </div>
+        ) : (
+          <div className="mx-auto max-w-6xl px-6 py-6">
+            <Outlet />
+          </div>
+        )}
       </main>
     </div>
   );

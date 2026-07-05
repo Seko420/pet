@@ -54,7 +54,7 @@ export function ProjectLayout(): React.JSX.Element {
           title="Projekt nicht gefunden"
           description="Es wurde möglicherweise gelöscht."
           action={
-            <Link to="/" className="btn-primary">
+            <Link to="/dashboard" className="btn-primary">
               Zum Dashboard
             </Link>
           }
@@ -79,7 +79,7 @@ export function ProjectLayout(): React.JSX.Element {
     <ProjectContext.Provider value={{ project, refresh }}>
       <div className="space-y-5">
         <div>
-          <Link to="/" className="mb-2 inline-flex items-center gap-1 text-xs text-mist-400 hover:text-mist-200">
+          <Link to="/dashboard" className="mb-2 inline-flex items-center gap-1 text-xs text-mist-400 hover:text-mist-200">
             <ArrowLeft className="h-3.5 w-3.5" /> Dashboard
           </Link>
           <div className="flex flex-wrap items-center gap-3">

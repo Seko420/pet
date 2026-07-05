@@ -73,6 +73,27 @@ export interface AiConfig {
   maxTokens: number | null;
 }
 
+/** A chat conversation in the global, Claude-style AI chat. */
+export interface ChatConversation {
+  id: string;
+  /** Optional project link: gives the chat full project context. */
+  projectId: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  /** First line of the last message - sidebar preview. */
+  lastSnippet: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
 /** Result of a one-shot AI quality review of a project. */
 export interface AiQualityReview {
   summary: string;
@@ -241,6 +262,20 @@ export interface IpcChannelMap {
   /** Aborts a running streamed AI request (chat). */
   'ai:abort': { req: { requestId: string }; res: void };
 
+  // Global, Claude-style chat (conversations independent of a project,
+  // optionally linked to one for context).
+  'chat:listConversations': { req: undefined; res: ChatConversation[] };
+  'chat:createConversation': { req: { projectId: string | null }; res: ChatConversation };
+  'chat:renameConversation': { req: { conversationId: string; title: string }; res: ChatConversation };
+  'chat:setProject': { req: { conversationId: string; projectId: string | null }; res: ChatConversation };
+  'chat:deleteConversation': { req: { conversationId: string }; res: void };
+  'chat:messages': { req: { conversationId: string }; res: ChatMessage[] };
+  /**
+   * Streamed chat message: returns immediately with a requestId; deltas
+   * arrive via 'event:aiChunk', completion via 'event:aiDone'.
+   */
+  'chat:sendStream': { req: { conversationId: string; message: string }; res: { requestId: string } };
+
   'app:createBackup': { req: undefined; res: BackupInfo };
   'app:listBackups': { req: undefined; res: BackupInfo[] };
   'app:restoreBackup': { req: { fileName: string }; res: void };
@@ -386,9 +421,15 @@ export interface IpcEventMap {
   'event:buildOutput': BuildOutputEvent;
   'event:buildExit': BuildExitEvent;
   /** Streamed AI text delta for a running chat request. */
-  'event:aiChunk': { requestId: string; projectId: string; delta: string };
+  'event:aiChunk': { requestId: string; projectId: string; conversationId?: string; delta: string };
   /** Terminal event of a streamed AI request. */
-  'event:aiDone': { requestId: string; projectId: string; ok: boolean; error: string | null };
+  'event:aiDone': {
+    requestId: string;
+    projectId: string;
+    conversationId?: string;
+    ok: boolean;
+    error: string | null;
+  };
 }
 
 export type IpcEvent = keyof IpcEventMap;

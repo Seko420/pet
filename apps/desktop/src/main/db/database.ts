@@ -137,6 +137,27 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    version: 5,
+    sql: `
+      CREATE TABLE ai_conversations (
+        id TEXT PRIMARY KEY,
+        project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_ai_conversations_updated ON ai_conversations(updated_at);
+      CREATE TABLE ai_chat_messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_ai_chat_messages_conv ON ai_chat_messages(conversation_id, created_at);
+    `,
+  },
 ];
 
 export type Db = BetterSqlite3.Database;

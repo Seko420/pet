@@ -67,7 +67,7 @@ export function ProjectOverview(): React.JSX.Element {
   const deleteProject = async (): Promise<void> => {
     try {
       await api.invoke('projects:delete', { id: project.id });
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError((err as Error).message);
     }

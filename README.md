@@ -12,6 +12,7 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 
 | Modul | Was es kann |
 | --- | --- |
+| **KI-Chat (Startbildschirm)** | Claude-artige Oberfläche: Unterhaltungsliste links (Neuer Chat, umbenennen, löschen, Auto-Titel), Chat mit Live-Streaming, Stopp-Knopf und Markdown-Antworten in der Mitte; optional pro Chat ein Projekt verknüpfen (KI kennt dann GDD, Aufgaben, Scores) und Antworten als Aufgabe speichern |
 | **Dashboard** | Alle Projekte mit Status, Genre, Plattform, Fortschritt, Roblox-Verbindung, letzten Builds/Tests und Qualitäts-Score |
 | **Idea Lab** | Generiert vollständige Spielideen (Pitch, Core Loop, USP, Monetarisierung, Risiken, Erfolgs-/Scheiter-Analyse, verbesserte Variante) nach Genre, Plattform, Zielgruppe, Aufwand — deterministisch reproduzierbar per Seed |
 | **GDD-Generator** | Erzeugt ein vollständiges Game Design Document mit 21 Sektionen (Core Loop bis Full-Release-Scope), genre- und plattformspezifisch, editierbar, als Markdown exportierbar |
@@ -38,7 +39,7 @@ Empire Game Forge AI ist eine Desktop-App (Windows-first, macOS/Linux-fähig), m
 | Roblox: Rojo/Luau-Scaffold, Validierung, rojo build/serve, Open-Cloud-Publishing mit Gates | **Implementiert** (Publishing braucht eigenen API-Key; rojo/Studio lokal installiert) |
 | Mobile: Godot-Projektgenerator, Budgets, Export-Anleitung | **Implementiert** (Android-Export läuft über den Godot-Editor) |
 | Secrets (safeStorage), Backups, Projekt-Export/-Import, Logs | **Implementiert** |
-| KI-Features (Streaming-Chat mit Projektkontext, KI-Ideen, GDD-Verbesserung, Qualitäts-Tiefenanalyse, KI-Aufgabenplan, Agent-Pläne, Commit-Vorschläge, Verbindungstest) | **Implementiert mit Key/lokaler KI** / **Mock-Modus ohne Key** |
+| KI-Features (globaler KI-Chat mit Unterhaltungen, Streaming-Chat mit Projektkontext, KI-Ideen, GDD-Verbesserung, Qualitäts-Tiefenanalyse, KI-Aufgabenplan, Agent-Pläne, Commit-Vorschläge, Verbindungstest) | **Implementiert mit Key/lokaler KI** / **Mock-Modus ohne Key** |
 | Editierbare Prompt-Vorlagen im UI | **Vorbereitet** (Prompts zentral in `packages/ai-kit/src/prompts.ts`) |
 | Automatisierte Android-Build-Pipeline, DataStore-Browser, Asset-Manager mit Vorschau | **Späterer Ausbau** (Roadmap, Adapter-Schnitte vorhanden) |
 | Auto-Updates, Code-Signierung, Team-Features/Cloud-Sync | **Vorbereitet** (Architektur ausgelegt, siehe docs/RELEASE.md) |

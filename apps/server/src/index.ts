@@ -112,6 +112,9 @@ services.build.setSink((event) => {
 services.agent.setSink((event) => {
   sseBroadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
 });
+services.chat.setSink((event) => {
+  sseBroadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
+});
 
 app.get('/api/events', (req, res) => {
   res.setHeader('content-type', 'text/event-stream');

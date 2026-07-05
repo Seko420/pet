@@ -95,4 +95,7 @@ export function registerIpcHandlers(services: Services): void {
   services.agent.setSink((event) => {
     broadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
   });
+  services.chat.setSink((event) => {
+    broadcast(event.type === 'chunk' ? 'event:aiChunk' : 'event:aiDone', event.payload);
+  });
 }
