@@ -193,6 +193,7 @@ export function IdeaLab(): React.JSX.Element {
   const [useAi, setUseAi] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(false);
   const [results, setResults] = useState<GameIdea[]>([]);
+  const [hasGenerated, setHasGenerated] = useState(false);
   const [savedIdeas, setSavedIdeas] = useState<GameIdea[] | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -226,6 +227,7 @@ export function IdeaLab(): React.JSX.Element {
       };
       const ideas = await api.invoke('ideas:generate', brief);
       setResults([...ideas].sort((a, b) => b.scores.overall - a.scores.overall));
+      setHasGenerated(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -367,6 +369,11 @@ export function IdeaLab(): React.JSX.Element {
       {error ? <ErrorNote message={error} /> : null}
       {generating ? <Spinner label="Konzepte werden geschmiedet und bewertet…" /> : null}
 
+      {hasGenerated && results.length === 0 ? (
+        <p className="py-6 text-center text-sm text-mist-400">
+          Keine Ideen erzeugt - lockere die Filter (z.B. Genres) und versuche es erneut.
+        </p>
+      ) : null}
       {results.length > 0 ? (
         <div className="space-y-4">
           <SectionTitle title={`${results.length} Ideen`} subtitle="Sortiert nach Gesamt-Score" />

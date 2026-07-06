@@ -1,6 +1,10 @@
 import {
   AiProviderError,
+  MAX_STREAM_CHARS,
+  REQUEST_TIMEOUT_MS,
+  STREAM_TIMEOUT_MS,
   abortOrNetworkError,
+  withTimeout,
   type AiCompletionRequest,
   type AiCompletionResult,
   type AiProvider,
@@ -66,7 +70,7 @@ export function createOpenAiCompatibleProvider(opts: OpenAiCompatibleOptions): A
           'content-type': 'application/json',
         },
         body: buildBody(request, stream),
-        ...(signal ? { signal } : {}),
+        signal: withTimeout(signal, stream ? STREAM_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
       });
     } catch (err) {
       throw abortOrNetworkError(err, baseUrl);
@@ -146,6 +150,9 @@ export function createOpenAiCompatibleProvider(opts: OpenAiCompatibleOptions): A
         const delta = event.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length > 0) {
           text += delta;
+          if (text.length > MAX_STREAM_CHARS) {
+            throw new AiProviderError(`${name}: Antwort überschreitet das Größenlimit - abgebrochen.`, 'invalid_response', false);
+          }
           onDelta(delta);
         }
       }

@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import type { FileContent, FileNode } from '../../shared/ipc';
 import type { ProjectsService } from './projects';
@@ -46,6 +46,15 @@ export class FilesService {
     const root = resolve(project.workspacePath);
     const absolute = resolve(root, relativePath);
     if (absolute !== root && !absolute.startsWith(root + sep)) {
+      throw new Error('Pfad liegt außerhalb des Projektordners - Zugriff verweigert.');
+    }
+    // Symlink in a PARENT segment could still escape (resolve() does not
+    // follow links) - re-check containment on the real filesystem path.
+    let probe = absolute;
+    while (!existsSync(probe)) probe = dirname(probe);
+    const realProbe = realpathSync(probe);
+    const realRoot = realpathSync(root);
+    if (realProbe !== realRoot && !realProbe.startsWith(realRoot + sep)) {
       throw new Error('Pfad liegt außerhalb des Projektordners - Zugriff verweigert.');
     }
     return { root, absolute };

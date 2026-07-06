@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/Shell';
 import { ChatHome } from './screens/ChatHome';
@@ -11,7 +11,6 @@ import { ProjectOverview } from './screens/project/ProjectOverview';
 import { GddView } from './screens/project/GddView';
 import { TaskBoard } from './screens/project/TaskBoard';
 import { CodeAgentView } from './screens/project/CodeAgentView';
-import { FilesView } from './screens/project/FilesView';
 import { RobloxView } from './screens/project/RobloxView';
 import { MobileView } from './screens/project/MobileView';
 import { ContentView } from './screens/project/ContentView';
@@ -20,6 +19,12 @@ import { ChecklistsView } from './screens/project/ChecklistsView';
 import { ScoresView } from './screens/project/ScoresView';
 import { SimulatorView } from './screens/project/SimulatorView';
 import { PlaytestsView } from './screens/project/PlaytestsView';
+
+// Lazy: FilesView zieht den Monaco-Editor (mehrere MB) - erst laden, wenn
+// der Dateien-Tab wirklich geöffnet wird.
+const FilesView = React.lazy(() =>
+  import('./screens/project/FilesView').then((m) => ({ default: m.FilesView })),
+);
 
 export default function App(): React.JSX.Element {
   return (
@@ -35,7 +40,14 @@ export default function App(): React.JSX.Element {
           <Route path="gdd" element={<GddView />} />
           <Route path="tasks" element={<TaskBoard />} />
           <Route path="agent" element={<CodeAgentView />} />
-          <Route path="files" element={<FilesView />} />
+          <Route
+            path="files"
+            element={
+              <Suspense fallback={<div className="p-6 text-sm text-mist-400">Lade Editor…</div>}>
+                <FilesView />
+              </Suspense>
+            }
+          />
           <Route path="roblox" element={<RobloxView />} />
           <Route path="mobile" element={<MobileView />} />
           <Route path="content" element={<ContentView />} />

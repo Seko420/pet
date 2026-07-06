@@ -9,6 +9,11 @@ import { Badge, Card, EmptyState, ErrorNote, Field, SectionTitle, Spinner } from
 import { BuildConsole } from '../../components/BuildConsole';
 import { useProject } from './projectContext';
 
+/** Läuft pro Projekt höchstens ein rojo serve - die Run-ID überlebt hier
+ * den Tab-Wechsel, damit der Prozess stoppbar bleibt (Unmount darf ihn
+ * NICHT killen, sonst verliert Roblox Studio die Verbindung). */
+const activeServeRuns = new Map<string, string>();
+
 export function RobloxView(): React.JSX.Element {
   const { project, refresh } = useProject();
   const [config, setConfig] = useState<RobloxProjectConfig | null | 'loading'>('loading');
@@ -25,7 +30,12 @@ export function RobloxView(): React.JSX.Element {
   const [confirmName, setConfirmName] = useState('');
   const [versionType, setVersionType] = useState<'Saved' | 'Published'>('Published');
   const [busy, setBusy] = useState<string | null>(null);
-  const [serveRunId, setServeRunId] = useState<string | null>(null);
+  const [serveRunId, setServeRunIdState] = useState<string | null>(() => activeServeRuns.get(project.id) ?? null);
+  const setServeRunId = (runId: string | null): void => {
+    if (runId) activeServeRuns.set(project.id, runId);
+    else activeServeRuns.delete(project.id);
+    setServeRunIdState(runId);
+  };
 
   const load = useCallback((): void => {
     api
@@ -48,6 +58,14 @@ export function RobloxView(): React.JSX.Element {
       .catch(() => undefined);
   }, [project.id]);
   useEffect(load, [load]);
+
+  // Endet der Serve-Prozess von selbst (Absturz, Stop anderswo), Zustand aufräumen.
+  useEffect(() => {
+    return api.on('event:buildExit', (event) => {
+      if (event.runId === activeServeRuns.get(project.id)) setServeRunId(null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
 
   if (project.platform === 'mobile') {
     return <EmptyState title="Kein Roblox-Projekt" description="Dieses Projekt zielt auf Mobile. Ändere die Plattform in der Übersicht, falls du Roblox ergänzen willst." />;

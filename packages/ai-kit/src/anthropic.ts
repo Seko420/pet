@@ -1,6 +1,10 @@
 import {
   AiProviderError,
+  MAX_STREAM_CHARS,
+  REQUEST_TIMEOUT_MS,
+  STREAM_TIMEOUT_MS,
   abortOrNetworkError,
+  withTimeout,
   type AiCompletionRequest,
   type AiCompletionResult,
   type AiProvider,
@@ -65,7 +69,7 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
           'content-type': 'application/json',
         },
         body: buildBody(request, stream),
-        ...(signal ? { signal } : {}),
+        signal: withTimeout(signal, stream ? STREAM_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
       });
     } catch (err) {
       throw abortOrNetworkError(err, 'api.anthropic.com');
@@ -151,6 +155,9 @@ export function createAnthropicProvider(opts: AnthropicOptions): AiProvider {
         }
         if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta' && event.delta.text) {
           text += event.delta.text;
+          if (text.length > MAX_STREAM_CHARS) {
+            throw new AiProviderError('anthropic: Antwort überschreitet das Größenlimit - abgebrochen.', 'invalid_response', false);
+          }
           onDelta(event.delta.text);
         } else if (event.type === 'message_start' && event.message?.usage?.input_tokens !== undefined) {
           inputTokens = event.message.usage.input_tokens;

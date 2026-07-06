@@ -62,7 +62,8 @@ export class SecretsService {
       id: createId('sec'),
       name: name.trim(),
       service,
-      hint: `…${trimmed.slice(-4)}`,
+      // Bei kurzen Schlüsseln (lokale KIs) keine Zeichen preisgeben.
+      hint: trimmed.length >= 12 ? `…${trimmed.slice(-4)}` : '••••',
       createdAt: now,
       updatedAt: now,
     };

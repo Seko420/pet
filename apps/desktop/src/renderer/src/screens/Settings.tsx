@@ -170,7 +170,7 @@ export function Settings(): React.JSX.Element {
                   max={1}
                   defaultValue={aiConfig.temperature ?? ''}
                   placeholder="Standard"
-                  onBlur={(e) => void saveAiConfig({ temperature: e.target.value === '' ? null : Number(e.target.value) })}
+                  onBlur={(e) => void saveAiConfig({ temperature: e.target.value === '' ? null : Math.min(1, Math.max(0, Number(e.target.value) || 0)) })}
                 />
               </Field>
               <Field label="Max. Tokens" hint="Leer = 4096; begrenzt Kosten pro Anfrage">
@@ -182,7 +182,7 @@ export function Settings(): React.JSX.Element {
                   max={64000}
                   defaultValue={aiConfig.maxTokens ?? ''}
                   placeholder="4096"
-                  onBlur={(e) => void saveAiConfig({ maxTokens: e.target.value === '' ? null : Number(e.target.value) })}
+                  onBlur={(e) => void saveAiConfig({ maxTokens: e.target.value === '' ? null : Math.min(64000, Math.max(100, Math.round(Number(e.target.value) || 4096))) })}
                 />
               </Field>
               {aiConfig.provider === 'custom_ai' ? (

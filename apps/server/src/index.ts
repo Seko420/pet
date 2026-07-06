@@ -83,8 +83,23 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '20mb' }));
 
+// Brute-Force-Bremse: nach 10 Fehlversuchen pro IP 60s sperren.
+const failedAuth = new Map<string, { count: number; blockedUntil: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of failedAuth) {
+    if (entry.blockedUntil < now && entry.count < 10) failedAuth.delete(ip);
+  }
+}, 300_000).unref();
+
 // Basic Auth (timing-safe) für ALLES.
 app.use((req, res, next) => {
+  const ip = req.socket.remoteAddress ?? 'unbekannt';
+  const entry = failedAuth.get(ip);
+  if (entry && entry.blockedUntil > Date.now()) {
+    res.status(429).send('Zu viele Fehlversuche - bitte 60 Sekunden warten.');
+    return;
+  }
   const header = req.headers.authorization ?? '';
   if (header.startsWith('Basic ')) {
     const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
@@ -92,9 +107,17 @@ app.use((req, res, next) => {
     const a = Buffer.from(decoded);
     const b = Buffer.from(expected);
     if (a.length === b.length && timingSafeEqual(a, b)) {
+      failedAuth.delete(ip);
       next();
       return;
     }
+    const updated = failedAuth.get(ip) ?? { count: 0, blockedUntil: 0 };
+    updated.count += 1;
+    if (updated.count >= 10) {
+      updated.blockedUntil = Date.now() + 60_000;
+      updated.count = 0;
+    }
+    failedAuth.set(ip, updated);
   }
   res.setHeader('WWW-Authenticate', 'Basic realm="Empire Game Forge AI", charset="UTF-8"');
   res.status(401).send('Anmeldung erforderlich.');

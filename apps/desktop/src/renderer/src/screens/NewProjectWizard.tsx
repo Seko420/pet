@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type {
@@ -38,6 +38,7 @@ export function NewProjectWizard(): React.JSX.Element {
 
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const createdIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState('');
@@ -117,18 +118,25 @@ export function NewProjectWizard(): React.JSX.Element {
       ideaId,
     };
     try {
-      setBusy('Erstelle Projekt…');
-      const project = await api.invoke('projects:create', input);
+      // Bei einem Teilfehler NICHT erneut anlegen: die bereits erzeugte
+      // Projekt-ID wird gemerkt und beim Retry nur der Rest wiederholt.
+      let projectId = createdIdRef.current;
+      if (!projectId) {
+        setBusy('Erstelle Projekt…');
+        const project = await api.invoke('projects:create', input);
+        projectId = project.id;
+        createdIdRef.current = project.id;
+      }
       setBusy('Erzeuge Aufgabenplan…');
-      await api.invoke('tasks:generateForProject', { projectId: project.id });
+      await api.invoke('tasks:generateForProject', { projectId });
       setBusy('Erzeuge Game Design Document…');
-      await api.invoke('gdd:generate', { projectId: project.id });
+      await api.invoke('gdd:generate', { projectId });
       setBusy('Bewerte Konzept…');
-      await api.invoke('scores:evaluateProject', { projectId: project.id });
+      await api.invoke('scores:evaluateProject', { projectId });
       setBusy('Plane Analytics & Content…');
-      await api.invoke('analytics:generatePlan', { projectId: project.id });
-      await api.invoke('content:generatePlan', { projectId: project.id });
-      navigate(`/projects/${project.id}`);
+      await api.invoke('analytics:generatePlan', { projectId });
+      await api.invoke('content:generatePlan', { projectId });
+      navigate(`/projects/${projectId}`);
     } catch (err) {
       setError((err as Error).message);
       setBusy(null);

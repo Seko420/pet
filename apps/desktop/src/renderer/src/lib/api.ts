@@ -32,9 +32,19 @@ function createHttpBridge(): EgfBridge {
   const ensureEventSource = (): void => {
     if (eventSource) return;
     eventSource = new EventSource('/api/events');
+    // EventSource reconnects automatically; we only log so a permanently
+    // broken stream is visible in the console instead of failing silently.
+    eventSource.onerror = () => {
+      console.warn('[egf] Live-Event-Verbindung unterbrochen - Browser verbindet automatisch neu…');
+    };
     for (const eventName of ['event:buildOutput', 'event:buildExit', 'event:aiChunk', 'event:aiDone']) {
       eventSource.addEventListener(eventName, (message) => {
-        const payload = JSON.parse((message as MessageEvent).data as string) as unknown;
+        let payload: unknown;
+        try {
+          payload = JSON.parse((message as MessageEvent).data as string) as unknown;
+        } catch {
+          return; // kaputtes Frame überspringen statt alle Listener zu killen
+        }
         for (const listener of listeners.get(eventName) ?? []) listener(payload);
       });
     }

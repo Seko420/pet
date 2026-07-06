@@ -84,6 +84,7 @@ export function createOpenCloudClient(opts: {
       try {
         res = await fetchFn(`${BASE_CLOUD_V2}/universes/${encodeURIComponent(universeId)}`, {
           headers,
+          signal: AbortSignal.timeout(30_000),
         });
       } catch {
         throw new OpenCloudError(
@@ -99,6 +100,11 @@ export function createOpenCloudClient(opts: {
 
     async publishPlace(params) {
       validatePlaceFileBytes(params.fileContent, params.fileType);
+      // Whitelist: the value crosses the web boundary untyped - never let
+      // anything but the two documented literals into the URL.
+      if (params.versionType !== 'Saved' && params.versionType !== 'Published') {
+        throw new OpenCloudError('Publish: Ungültiger versionType.', 'invalid_file', false);
+      }
       const url =
         `${BASE_UNIVERSES_V1}/${encodeURIComponent(params.universeId)}` +
         `/places/${encodeURIComponent(params.placeId)}/versions?versionType=${params.versionType}`;
@@ -112,6 +118,7 @@ export function createOpenCloudClient(opts: {
               params.fileType === 'rbxlx' ? 'application/xml' : 'application/octet-stream',
           },
           body: params.fileContent as unknown as NonNullable<Parameters<typeof fetch>[1]>['body'],
+          signal: AbortSignal.timeout(120_000),
         });
       } catch {
         throw new OpenCloudError(

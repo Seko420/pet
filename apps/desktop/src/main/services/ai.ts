@@ -55,6 +55,17 @@ export class AiService {
       if (!/^https?:\/\//.test(config.customBaseUrl)) {
         throw new Error('Die Basis-URL muss mit http:// oder https:// beginnen.');
       }
+      // localhost/private bleibt erlaubt (LM Studio/Ollama), aber Link-Local-/
+      // Cloud-Metadata-Adressen sind nie ein legitimer KI-Endpunkt (SSRF).
+      try {
+        const host = new URL(config.customBaseUrl).hostname;
+        if (host === '169.254.169.254' || host.startsWith('169.254.') || host === 'metadata.google.internal' || host === '[fe80::1]' || host.startsWith('fe80:')) {
+          throw new Error('Diese Adresse ist als KI-Endpunkt nicht erlaubt.');
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('nicht erlaubt')) throw err;
+        throw new Error('Die Basis-URL ist keine gültige URL.');
+      }
     }
     if (config.temperature !== null && (config.temperature < 0 || config.temperature > 1)) {
       throw new Error('Temperatur muss zwischen 0 und 1 liegen.');

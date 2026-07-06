@@ -325,7 +325,7 @@ export function CodeAgentView(): React.JSX.Element {
                 <Square className="h-4 w-4" /> Stopp
               </button>
             ) : (
-              <button className="btn-primary" onClick={() => void send()} disabled={!input.trim()}>
+              <button className="btn-primary" aria-label="Nachricht senden" title="Senden" onClick={() => void send()} disabled={!input.trim()}>
                 <Send className="h-4 w-4" />
               </button>
             )}

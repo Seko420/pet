@@ -78,6 +78,9 @@ export class AiProviderError extends Error {
 
 /** Maps fetch/abort failures uniformly for all providers. */
 export function abortOrNetworkError(err: unknown, host: string): AiProviderError {
+  if (err instanceof Error && err.name === 'TimeoutError') {
+    return new AiProviderError(`Zeitüberschreitung beim Warten auf ${host}.`, 'network', true);
+  }
   if (err instanceof Error && err.name === 'AbortError') {
     return new AiProviderError('Anfrage abgebrochen.', 'aborted', false);
   }
@@ -86,4 +89,19 @@ export function abortOrNetworkError(err: unknown, host: string): AiProviderError
     'network',
     true,
   );
+}
+
+/** Upper bound for accumulated stream text - guards against OOM from a
+ * malicious or broken endpoint that streams forever. */
+export const MAX_STREAM_CHARS = 1_000_000;
+
+/** Non-streamed requests must answer within this window. */
+export const REQUEST_TIMEOUT_MS = 120_000;
+/** Streamed requests may run longer, but not forever. */
+export const STREAM_TIMEOUT_MS = 600_000;
+
+/** Combines a caller abort signal with a hard timeout. */
+export function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
