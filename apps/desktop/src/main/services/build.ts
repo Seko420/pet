@@ -167,6 +167,19 @@ export class BuildService {
     }
   }
 
+  /** Kills all running child processes (rojo serve etc.) - called on app
+   * shutdown so nothing keeps running as an orphan. */
+  disposeAll(): void {
+    for (const child of this.running.values()) {
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* already gone */
+      }
+    }
+    this.running.clear();
+  }
+
   private record(projectId: string, kind: 'build' | 'test', ok: boolean, summary: string): void {
     this.db
       .prepare('INSERT INTO build_records (id, project_id, kind, ok, at, summary) VALUES (?, ?, ?, ?, ?, ?)')

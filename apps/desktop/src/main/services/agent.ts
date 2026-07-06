@@ -82,7 +82,7 @@ export class AgentService {
 
   history(projectId: string): AgentChatMessage[] {
     const rows = this.db
-      .prepare('SELECT data FROM agent_messages WHERE project_id = ? ORDER BY created_at ASC LIMIT 200')
+      .prepare('SELECT data FROM agent_messages WHERE project_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 200')
       .all(projectId) as { data: string }[];
     return rows.map((r) => JSON.parse(r.data) as AgentChatMessage);
   }

@@ -83,7 +83,8 @@ export function parseChatActions(text: string): { content: string; actions: Chat
       try {
         const parsed = JSON.parse(body) as { actions?: unknown };
         const list = Array.isArray(parsed.actions) ? parsed.actions : [];
-        for (const raw of list.slice(0, 8)) {
+        for (const raw of list) {
+          if (actions.length >= 8) break; // hard cap ACROSS all blocks
           const action = toAction(raw as Record<string, unknown>);
           if (action) actions.push(action);
         }
@@ -189,10 +190,28 @@ export class ChatService {
   }
 
   list(): ChatConversation[] {
+    // Single query instead of 2 extra lookups per conversation (N+1).
     const rows = this.db
-      .prepare('SELECT * FROM ai_conversations ORDER BY updated_at DESC LIMIT 200')
-      .all() as ConversationRow[];
-    return rows.map((row) => this.toConversation(row));
+      .prepare(
+        `SELECT c.*,
+                (SELECT COUNT(*) FROM ai_chat_messages m WHERE m.conversation_id = c.id) AS message_count,
+                (SELECT m.content FROM ai_chat_messages m WHERE m.conversation_id = c.id
+                 ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_content
+         FROM ai_conversations c ORDER BY c.updated_at DESC LIMIT 200`,
+      )
+      .all() as (ConversationRow & { message_count: number; last_content: string | null })[];
+    return rows.map((row) => {
+      const lastLine = row.last_content?.split('\n').find((l) => l.trim()) ?? null;
+      return {
+        id: row.id,
+        projectId: row.project_id,
+        title: row.title,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        messageCount: row.message_count,
+        lastSnippet: lastLine ? lastLine.slice(0, 90) : null,
+      };
+    });
   }
 
   create(projectId: string | null): ChatConversation {
@@ -238,8 +257,10 @@ export class ChatService {
 
   messages(conversationId: string): ChatMessage[] {
     this.getRow(conversationId);
+    // rowid as tie-breaker: two messages within the same millisecond
+    // (e.g. action result right after the reply) must keep insert order.
     const rows = this.db
-      .prepare('SELECT * FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 400')
+      .prepare('SELECT * FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 400')
       .all(conversationId) as {
       id: string;
       conversation_id: string;

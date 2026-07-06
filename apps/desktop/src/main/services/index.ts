@@ -123,6 +123,11 @@ export function createServices(
 
 export function disposeServices(services: Services): void {
   try {
+    services.build.disposeAll();
+  } catch {
+    /* best effort */
+  }
+  try {
     services.db.close();
   } catch {
     /* already closed */

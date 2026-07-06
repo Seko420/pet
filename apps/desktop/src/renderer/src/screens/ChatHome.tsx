@@ -96,6 +96,7 @@ function ConversationItem({
         <button
           className="rounded p-1 text-mist-400 hover:bg-ink-600 hover:text-mist-100"
           title="Umbenennen"
+          aria-label="Chat umbenennen"
           onClick={(e) => {
             e.stopPropagation();
             setValue(conversation.title);
@@ -107,6 +108,7 @@ function ConversationItem({
         <button
           className="rounded p-1 text-mist-400 hover:bg-ink-600 hover:text-bad"
           title="Löschen"
+          aria-label="Chat löschen"
           onClick={(e) => {
             e.stopPropagation();
             if (window.confirm(`Chat „${conversation.title}" wirklich löschen?`)) onDelete();
@@ -214,6 +216,7 @@ function ChatInput({
           <button
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-bad/90 text-white transition-colors hover:bg-bad"
             title="Antwort stoppen"
+            aria-label="Antwort stoppen"
             onClick={onStop}
           >
             <Square className="h-3.5 w-3.5" />
@@ -222,6 +225,7 @@ function ChatInput({
           <button
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-forge-500 text-white transition-colors hover:bg-forge-400 disabled:opacity-40"
             title="Senden"
+            aria-label="Nachricht senden"
             disabled={disabled || !value.trim()}
             onClick={onSend}
           >
@@ -246,6 +250,10 @@ export function ChatHome(): React.JSX.Element {
   const [taskNote, setTaskNote] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  // Ref mirror of activeId: the SSE 'done' handler is registered once and
+  // would otherwise act on a stale activeId (overwriting the wrong chat).
+  const activeIdRef = useRef<string | null>(null);
+  activeIdRef.current = activeId;
 
   const active = conversations?.find((c) => c.id === activeId) ?? null;
 
@@ -285,9 +293,13 @@ export function ChatHome(): React.JSX.Element {
         if (!prev || prev.requestId !== event.requestId) return prev;
         setSending(false);
         if (event.error) setError(event.error);
-        api.invoke('chat:messages', { conversationId: prev.conversationId }).then((loaded) => {
-          setMessages((current) => (prev.conversationId === event.conversationId ? loaded : current));
-        }).catch(() => undefined);
+        // Only refresh the message list if the finished chat is still the
+        // one on screen - otherwise we would overwrite the wrong chat.
+        if (activeIdRef.current === prev.conversationId) {
+          api.invoke('chat:messages', { conversationId: prev.conversationId }).then((loaded) => {
+            if (activeIdRef.current === prev.conversationId) setMessages(loaded);
+          }).catch(() => undefined);
+        }
         loadConversations();
         return null;
       });
