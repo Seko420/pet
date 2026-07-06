@@ -1,4 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
+import { homedir } from 'node:os';
 import type { BuildExitEvent, BuildOutputEvent, BuildRequest } from '../../shared/ipc';
 import { createId, nowIso } from '@egf/core';
 import type { Db } from '../db/database';
@@ -6,6 +9,37 @@ import type { ProjectsService } from './projects';
 import type { RobloxService } from './roblox';
 
 type BuildSink = (event: { type: 'output'; payload: BuildOutputEvent } | { type: 'exit'; payload: BuildExitEvent }) => void;
+
+/**
+ * GUI apps on macOS (and partly Linux) are launched WITHOUT the user's shell
+ * PATH - /usr/local/bin & Co. are invisible, so `rojo` "isn't installed"
+ * even though it works in the terminal. We therefore (a) resolve known
+ * install locations explicitly and (b) extend PATH for child processes.
+ */
+const EXTRA_BIN_DIRS = [
+  '/usr/local/bin',
+  '/opt/homebrew/bin',
+  '/opt/local/bin',
+  join(homedir(), '.aftman', 'bin'),
+  join(homedir(), '.foreman', 'bin'),
+  join(homedir(), '.cargo', 'bin'),
+  join(homedir(), '.local', 'bin'),
+];
+
+export function resolveCommand(command: string): string {
+  if (process.platform === 'win32') return command; // Windows inherits a sane PATH
+  for (const dir of EXTRA_BIN_DIRS) {
+    const candidate = join(dir, command);
+    if (existsSync(candidate)) return candidate;
+  }
+  return command; // fall back to PATH lookup
+}
+
+export function extendedEnv(): NodeJS.ProcessEnv {
+  const current = process.env.PATH ?? '';
+  const missing = EXTRA_BIN_DIRS.filter((dir) => !current.split(delimiter).includes(dir));
+  return { ...process.env, PATH: [current, ...missing].filter(Boolean).join(delimiter) };
+}
 
 /**
  * Build console backend. Only a FIXED set of tasks can run - never a
@@ -77,7 +111,8 @@ export class BuildService {
       if (request.task === 'rojo_serve') {
         emitInfo('Rojo-Serve läuft, bis du ihn stoppst - im Studio das Rojo-Plugin verbinden (Standard-Port 34872).');
       }
-      installHint = 'rojo wurde nicht gefunden. Installation: aftman install im Rojo-Projektordner (aftman: https://github.com/LPGhatguy/aftman) oder rojo.space/docs.';
+      installHint =
+        'rojo wurde nicht gefunden. Installation: rojo.space/docs (macOS: ZIP von github.com/rojo-rbx/rojo/releases nach /usr/local/bin entpacken). Danach diese Aktion einfach erneut starten.';
     } else {
       const godotPath = project.mobile?.godotProjectPath;
       if (!godotPath) throw new Error('Kein Godot-Projekt vorhanden - zuerst im Mobile-Tab generieren.');
@@ -87,10 +122,11 @@ export class BuildService {
       installHint = 'godot wurde nicht gefunden. Godot 4.3+ von godotengine.org laden und die ausführbare Datei in den PATH legen (oder als "godot" verlinken).';
     }
 
-    emitInfo(`> ${command} ${args.join(' ')}`);
+    const resolved = resolveCommand(command);
+    emitInfo(`> ${resolved} ${args.join(' ')}`);
     let child: ChildProcess;
     try {
-      child = spawn(command, args, { cwd, shell: false });
+      child = spawn(resolved, args, { cwd, shell: false, env: extendedEnv() });
     } catch {
       throw new Error(installHint);
     }

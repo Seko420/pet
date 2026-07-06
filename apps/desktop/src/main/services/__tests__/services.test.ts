@@ -22,6 +22,7 @@ import { TransferService } from '../transfer';
 import { SettingsService } from '../settings';
 import { AiService } from '../ai';
 import { ChatService, parseChatActions } from '../chat';
+import { extendedEnv, resolveCommand } from '../build';
 import type { OpenCloudClient } from '@egf/roblox-kit';
 
 const fakeCipher: SecretsCipher = {
@@ -437,6 +438,17 @@ describe('chat service (global, Claude-style)', () => {
     expect(db.prepare('SELECT COUNT(*) AS c FROM gdds WHERE project_id = ?').get(created!.id)).toMatchObject({ c: 1 });
     // Conversation is now linked to the new project.
     expect(chat.list()[0]!.projectId).toBe(created!.id);
+  });
+});
+
+describe('build tool resolution (macOS GUI PATH)', () => {
+  it('extends PATH with common install dirs and falls back to the bare command', () => {
+    // GUI apps on macOS miss /usr/local/bin - child processes must get it.
+    if (process.platform !== 'win32') {
+      expect(extendedEnv().PATH).toContain('/usr/local/bin');
+    }
+    // Unknown binary: unchanged, so the ENOENT handler shows the install hint.
+    expect(resolveCommand('definitiv-nicht-vorhanden-xyz')).toBe('definitiv-nicht-vorhanden-xyz');
   });
 });
 
