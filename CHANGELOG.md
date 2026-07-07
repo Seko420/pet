@@ -4,6 +4,10 @@ Alle nennenswerten Änderungen an Empire Game Forge AI.
 
 ## [0.1.0] — Erste Version
 
+### Performance & Politur
+- Code-Editor (Monaco) auf die tatsächlich genutzten Sprachen getrimmt (Luau/Lua, JSON, Markdown, INI, XML, YAML, HTML, CSS, TS/JS-Highlighting) statt aller ~90 Sprachen: der 11,8-MB-TypeScript-Worker entfällt komplett, **Editor-Assets gesamt 21 MB → 6,3 MB (−70 %)** — schnellerer Start, kleinerer Installer. JSON-Validierung bleibt erhalten; Luau-Syntaxhighlighting verifiziert
+- Eigene In-App-Bestätigungs-Dialoge (dunkles Design, Enter/Escape, roter Knopf für Lösch-Aktionen) statt grauer System-Popups an allen 14 Stellen
+
 ### App-angepasste Studio-KI (Aktionen mit Freigabe)
 - Die Chat-KI kennt jetzt die App selbst (eingebautes Handbuch im System-Prompt): sie erklärt Klickwege, Publishing-Gates und Einstellungen korrekt statt generisch zu raten
 - Die KI kann Dinge in der App TUN — sie schlägt Aktionen vor, du bestätigst per Knopf: Aufgaben anlegen, GDD-Sektionen speichern (erzeugt fehlendes GDD automatisch), komplettes Projekt anlegen (inkl. Aufgabenplan/GDD/Scores/Analytics/Content, Chat wird verknüpft), Spielideen generieren
