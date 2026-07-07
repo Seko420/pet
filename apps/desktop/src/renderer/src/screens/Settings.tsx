@@ -6,6 +6,7 @@ import type { AiConfig, AiStatusInfo, AppInfo, BackupInfo } from '@shared/ipc';
 import { api } from '../lib/api';
 import { formatDate, formatDateTime } from '../lib/labels';
 import { Badge, Card, ErrorNote, Field, SectionTitle, Spinner } from '../components/ui';
+import { useConfirm } from '../components/ConfirmDialog';
 
 const AI_PROVIDER_OPTIONS: { value: AiConfig['provider']; label: string; hint: string }[] = [
   { value: 'auto', label: 'Automatisch', hint: 'Nutzt den zuerst gefundenen KI-Key (Anthropic → OpenAI → Eigene API), sonst Mock' },
@@ -17,6 +18,7 @@ const AI_PROVIDER_OPTIONS: { value: AiConfig['provider']; label: string; hint: s
 
 export function Settings(): React.JSX.Element {
   const [ai, setAi] = useState<AiStatusInfo | null>(null);
+  const confirmDialog = useConfirm();
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [secrets, setSecrets] = useState<SecretRef[] | null>(null);
@@ -79,12 +81,14 @@ export function Settings(): React.JSX.Element {
   };
 
   const restoreBackup = async (backup: BackupInfo): Promise<void> => {
-    if (
-      !window.confirm(
-        `Backup „${backup.fileName}" wiederherstellen?\n\nALLE aktuellen Daten werden durch den Backup-Stand ersetzt und die App startet neu. Erstelle vorher ein frisches Backup, wenn du den aktuellen Stand behalten willst.`,
-      )
-    )
-      return;
+    const okRestore = await confirmDialog({
+      title: `Backup „${backup.fileName}" wiederherstellen?`,
+      message:
+        'ALLE aktuellen Daten werden durch den Backup-Stand ersetzt und die App startet neu. Erstelle vorher ein frisches Backup, wenn du den aktuellen Stand behalten willst.',
+      confirmLabel: 'Wiederherstellen',
+      danger: true,
+    });
+    if (!okRestore) return;
     try {
       await api.invoke('app:restoreBackup', { fileName: backup.fileName });
     } catch (err) {
@@ -110,7 +114,13 @@ export function Settings(): React.JSX.Element {
   };
 
   const deleteSecret = async (ref: SecretRef): Promise<void> => {
-    if (!window.confirm(`Schlüssel „${ref.name}" wirklich löschen? Verknüpfte Projekte verlieren die Verbindung.`)) return;
+    const okDelete = await confirmDialog({
+      title: 'Schlüssel löschen?',
+      message: `„${ref.name}" wird gelöscht - verknüpfte Projekte verlieren die Verbindung.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    });
+    if (!okDelete) return;
     try {
       await api.invoke('secrets:delete', { id: ref.id });
       refresh();

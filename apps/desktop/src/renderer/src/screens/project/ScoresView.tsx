@@ -6,6 +6,7 @@ import type { AiQualityReview } from '@shared/ipc';
 import { api } from '../../lib/api';
 import { SUGGESTION_CATEGORY_LABELS } from '../../lib/labels';
 import { Badge, Card, ErrorNote, ScoreBar, SectionTitle, Spinner, scoreTone } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const DIMENSIONS: ScoreDimension[] = [
@@ -33,6 +34,7 @@ function Dots({ value, max = 5 }: { value: number; max?: number }): React.JSX.El
 
 export function ScoresView(): React.JSX.Element {
   const { project, refresh } = useProject();
+  const confirmDialog = useConfirm();
   const [evaluation, setEvaluation] = useState<ScoreEvaluation | null>(null);
   const [aiReview, setAiReview] = useState<AiQualityReview | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
@@ -62,7 +64,12 @@ export function ScoresView(): React.JSX.Element {
   }, [project.id]);
 
   const runAiReview = async (): Promise<void> => {
-    if (!window.confirm('KI-Tiefenanalyse starten? Die KI liest Projektsteckbrief, GDD-Auszug und offene Aufgaben (verursacht bei Cloud-Anbietern API-Kosten).')) return;
+    const ok = await confirmDialog({
+      title: 'KI-Tiefenanalyse starten?',
+      message: 'Die KI liest Projektsteckbrief, GDD-Auszug und offene Aufgaben (verursacht bei Cloud-Anbietern API-Kosten).',
+      confirmLabel: 'Starten',
+    });
+    if (!ok) return;
     setReviewBusy(true);
     setError(null);
     try {

@@ -4,6 +4,7 @@ import type { ContentCategory, ContentItem, ContentItemStatus } from '@egf/core'
 import { CONTENT_CATEGORY_LABELS } from '@egf/core';
 import { api } from '../../lib/api';
 import { Card, EmptyState, ErrorNote, SectionTitle, Spinner } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const RARITY_STYLES: Record<string, string> = {
@@ -22,6 +23,7 @@ const STATUS_LABELS: Record<ContentItemStatus, string> = {
 
 export function ContentView(): React.JSX.Element {
   const { project } = useProject();
+  const confirmDialog = useConfirm();
   const [items, setItems] = useState<ContentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,13 @@ export function ContentView(): React.JSX.Element {
   };
 
   const remove = async (item: ContentItem): Promise<void> => {
-    if (!window.confirm(`„${item.name}" aus dem Content-Plan löschen?`)) return;
+    const ok = await confirmDialog({
+      title: 'Content-Eintrag löschen?',
+      message: `„${item.name}" wird aus dem Content-Plan entfernt.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.invoke('content:delete', { id: item.id });
       load();

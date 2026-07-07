@@ -16,6 +16,7 @@ import type { AiStatusInfo, ChatAction, ChatConversation, ChatMessage } from '@s
 import { api } from '../lib/api';
 import { Markdown } from '../components/Markdown';
 import { ErrorNote, Spinner } from '../components/ui';
+import { useConfirm } from '../components/ConfirmDialog';
 
 /**
  * Claude-style home screen: conversation list on the left, one big chat in
@@ -43,6 +44,7 @@ function ConversationItem({
   onDelete: () => void;
 }): React.JSX.Element {
   const [editing, setEditing] = useState(false);
+  const confirmDialog = useConfirm();
   const [value, setValue] = useState(conversation.title);
 
   if (editing) {
@@ -111,7 +113,12 @@ function ConversationItem({
           aria-label="Chat löschen"
           onClick={(e) => {
             e.stopPropagation();
-            if (window.confirm(`Chat „${conversation.title}" wirklich löschen?`)) onDelete();
+            void confirmDialog({
+              title: 'Chat löschen?',
+              message: `„${conversation.title}" wird dauerhaft gelöscht.`,
+              confirmLabel: 'Löschen',
+              danger: true,
+            }).then((ok) => ok && onDelete());
           }}
         >
           <Trash2 className="h-3 w-3" />

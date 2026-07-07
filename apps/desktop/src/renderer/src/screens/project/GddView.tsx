@@ -4,11 +4,13 @@ import type { GddDocument, GddSectionId } from '@egf/core';
 import { GDD_SECTION_TITLES } from '@egf/core';
 import { api } from '../../lib/api';
 import { Badge, Card, EmptyState, ErrorNote, Spinner } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { renderMarkdown } from '../../components/Markdown';
 import { useProject } from './projectContext';
 
 export function GddView(): React.JSX.Element {
   const { project } = useProject();
+  const confirmDialog = useConfirm();
   const [doc, setDoc] = useState<GddDocument | null | 'loading'>('loading');
   const [activeId, setActiveId] = useState<GddSectionId>('overview');
   const [editing, setEditing] = useState(false);
@@ -63,7 +65,12 @@ export function GddView(): React.JSX.Element {
 
   const improveSection = async (): Promise<void> => {
     if (doc === 'loading' || !doc) return;
-    if (!window.confirm('Diese Sektion mit KI überarbeiten? Der aktuelle Text der Sektion wird ersetzt (verursacht bei Cloud-Anbietern API-Kosten).')) return;
+    const okImprove = await confirmDialog({
+      title: 'Sektion mit KI überarbeiten?',
+      message: 'Der aktuelle Text der Sektion wird ersetzt (verursacht bei Cloud-Anbietern API-Kosten).',
+      confirmLabel: 'Überarbeiten',
+    });
+    if (!okImprove) return;
     setBusy(true);
     setError(null);
     try {
@@ -112,7 +119,12 @@ export function GddView(): React.JSX.Element {
             className="btn-secondary"
             disabled={busy}
             onClick={() => {
-              if (window.confirm('GDD neu generieren? Manuelle Änderungen an allen Sektionen werden überschrieben.')) void generate();
+              void confirmDialog({
+                title: 'GDD neu generieren?',
+                message: 'Manuelle Änderungen an allen Sektionen werden überschrieben.',
+                confirmLabel: 'Neu generieren',
+                danger: true,
+              }).then((ok) => ok && void generate());
             }}
           >
             <RefreshCw className="h-4 w-4" /> Neu generieren

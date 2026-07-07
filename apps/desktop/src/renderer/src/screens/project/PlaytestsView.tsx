@@ -4,6 +4,7 @@ import type { PlaytestFindingCategory, PlaytestSession, PlaytestSeverity } from 
 import { PLAYTEST_CATEGORY_LABELS } from '@egf/core';
 import { api } from '../../lib/api';
 import { Badge, Card, EmptyState, ErrorNote, Field, SectionTitle, Spinner, type BadgeTone } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const CATEGORY_TONES: Record<PlaytestFindingCategory, BadgeTone> = {
@@ -58,6 +59,7 @@ function FindingForm({ onAdd }: { onAdd: (finding: { category: PlaytestFindingCa
 
 export function PlaytestsView(): React.JSX.Element {
   const { project } = useProject();
+  const confirmDialog = useConfirm();
   const [sessions, setSessions] = useState<PlaytestSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -117,7 +119,13 @@ export function PlaytestsView(): React.JSX.Element {
   };
 
   const deleteSession = async (session: PlaytestSession): Promise<void> => {
-    if (!window.confirm(`Playtest-Session „${session.title}" mit ${session.findings.length} Findings löschen?`)) return;
+    const ok = await confirmDialog({
+      title: 'Playtest-Session löschen?',
+      message: `„${session.title}" mit ${session.findings.length} Findings wird dauerhaft gelöscht.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.invoke('playtests:delete', { id: session.id });
       load();

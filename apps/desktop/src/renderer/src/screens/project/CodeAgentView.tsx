@@ -5,6 +5,7 @@ import type { AiStatusInfo } from '@shared/ipc';
 import { api } from '../../lib/api';
 import { formatDateTime } from '../../lib/labels';
 import { Badge, Card, ErrorNote, SectionTitle, Spinner, type BadgeTone } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const RUN_STATUS: Record<AgentRun['status'], { label: string; tone: BadgeTone }> = {
@@ -21,6 +22,7 @@ const CHANGE_LABELS: Record<string, string> = { create: 'neu', modify: 'ändern'
 
 function RunCard({ run, onApprove, onReject, busy }: { run: AgentRun; onApprove: (id: string) => void; onReject: (id: string) => void; busy: boolean }): React.JSX.Element {
   const [openChange, setOpenChange] = useState<string | null>(null);
+  const confirmDialog = useConfirm();
   const status = RUN_STATUS[run.status];
 
   return (
@@ -99,7 +101,11 @@ function RunCard({ run, onApprove, onReject, busy }: { run: AgentRun; onApprove:
             disabled={busy}
             onClick={() => {
               const fileList = run.changes.map((c) => `• ${c.path} (${CHANGE_LABELS[c.kind]})`).join('\n');
-              if (window.confirm(`Diese Dateien werden geändert:\n\n${fileList}\n\nÄnderungen anwenden?`)) onApprove(run.id);
+              void confirmDialog({
+                title: 'Änderungen anwenden?',
+                message: `Diese Dateien werden geändert:\n\n${fileList}`,
+                confirmLabel: 'Anwenden',
+              }).then((ok) => ok && onApprove(run.id));
             }}
           >
             <Check className="h-4 w-4" /> Änderungen anwenden

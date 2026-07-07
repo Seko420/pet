@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import '../../lib/monaco';
 import { monaco } from '../../lib/monaco';
 import { Badge, Card, EmptyState, ErrorNote, SectionTitle, Spinner } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 function FileIcon({ name }: { name: string }): React.JSX.Element {
@@ -63,6 +64,7 @@ function TreeNode({
 
 export function FilesView(): React.JSX.Element {
   const { project } = useProject();
+  const confirmDialog = useConfirm();
   const [tree, setTree] = useState<FileNode | null | 'loading'>('loading');
   const [file, setFile] = useState<FileContent | null>(null);
   const [content, setContent] = useState('');
@@ -82,7 +84,15 @@ export function FilesView(): React.JSX.Element {
   useEffect(loadTree, [loadTree]);
 
   const openFile = async (path: string): Promise<void> => {
-    if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
+    if (dirty) {
+      const ok = await confirmDialog({
+        title: 'Ungespeicherte Änderungen verwerfen?',
+        message: 'Deine Änderungen an der aktuellen Datei gehen verloren.',
+        confirmLabel: 'Verwerfen',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setError(null);
     try {
       const loaded = await api.invoke('files:read', { projectId: project.id, path });

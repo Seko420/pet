@@ -3,6 +3,7 @@ import { BarChart3, RefreshCw } from 'lucide-react';
 import type { AnalyticsEventCategory, AnalyticsPlan } from '@egf/core';
 import { api } from '../../lib/api';
 import { Badge, Card, EmptyState, ErrorNote, SectionTitle, Spinner, type BadgeTone } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const CATEGORY_LABELS: Record<AnalyticsEventCategory, string> = {
@@ -34,6 +35,7 @@ const KIND_LABELS: Record<string, string> = {
 
 export function AnalyticsView(): React.JSX.Element {
   const { project } = useProject();
+  const confirmDialog = useConfirm();
   const [plan, setPlan] = useState<AnalyticsPlan | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,7 +92,11 @@ export function AnalyticsView(): React.JSX.Element {
             className="btn-secondary"
             disabled={busy}
             onClick={() => {
-              if (window.confirm('Plan neu generieren? Der bestehende Plan wird ersetzt.')) void generate();
+              void confirmDialog({
+                title: 'Analytics-Plan neu generieren?',
+                message: 'Der bestehende Plan wird ersetzt.',
+                confirmLabel: 'Neu generieren',
+              }).then((ok) => ok && void generate());
             }}
           >
             <RefreshCw className="h-4 w-4" /> Neu generieren

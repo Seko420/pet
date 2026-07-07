@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { ConfirmProvider } from './components/ConfirmDialog';
 import { Shell } from './components/Shell';
 import { ChatHome } from './screens/ChatHome';
 import { Dashboard } from './screens/Dashboard';
@@ -28,7 +29,8 @@ const FilesView = React.lazy(() =>
 
 export default function App(): React.JSX.Element {
   return (
-    <Routes>
+    <ConfirmProvider>
+      <Routes>
       <Route element={<Shell />}>
         <Route index element={<ChatHome />} />
         <Route path="dashboard" element={<Dashboard />} />
@@ -59,6 +61,7 @@ export default function App(): React.JSX.Element {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
-    </Routes>
+      </Routes>
+    </ConfirmProvider>
   );
 }

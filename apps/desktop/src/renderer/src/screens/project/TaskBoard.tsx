@@ -5,6 +5,7 @@ import { TASK_CATEGORY_LABELS } from '@egf/core';
 import { api } from '../../lib/api';
 import { PRIORITY_COLORS, PRIORITY_LABELS, TASK_STATUS_LABELS } from '../../lib/labels';
 import { Badge, Card, ErrorNote, Field, SectionTitle, Spinner } from '../../components/ui';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useProject } from './projectContext';
 
 const STATUS_ORDER: TaskStatus[] = ['todo', 'in_progress', 'done', 'blocked'];
@@ -20,6 +21,7 @@ function TaskCard({
   onDelete: (id: string) => void;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const confirmDialog = useConfirm();
   const flowIndex = FLOW.indexOf(task.status);
 
   return (
@@ -65,7 +67,12 @@ function TaskCard({
             <button
               className="btn-ghost ml-auto px-2 py-1 text-xs text-bad"
               onClick={() => {
-                if (window.confirm(`Aufgabe „${task.title}" löschen?`)) onDelete(task.id);
+                void confirmDialog({
+                  title: 'Aufgabe löschen?',
+                  message: `„${task.title}" wird vom Board entfernt.`,
+                  confirmLabel: 'Löschen',
+                  danger: true,
+                }).then((ok) => ok && onDelete(task.id));
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -92,6 +99,7 @@ function TaskCard({
 
 export function TaskBoard(): React.JSX.Element {
   const { project } = useProject();
+  const confirmBoard = useConfirm();
   const [tasks, setTasks] = useState<TaskItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [milestoneFilter, setMilestoneFilter] = useState<string>('alle');
@@ -153,7 +161,12 @@ export function TaskBoard(): React.JSX.Element {
   };
 
   const aiPlan = async (): Promise<void> => {
-    if (!window.confirm('KI-Aufgabenplanung starten? Die KI schlägt neue Aufgaben passend zum Projektstand vor (verursacht bei Cloud-Anbietern API-Kosten).')) return;
+    const ok = await confirmBoard({
+      title: 'KI-Aufgabenplanung starten?',
+      message: 'Die KI schlägt neue Aufgaben passend zum Projektstand vor (verursacht bei Cloud-Anbietern API-Kosten).',
+      confirmLabel: 'Starten',
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {

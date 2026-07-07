@@ -6,6 +6,7 @@ import { AUDIENCE_LABELS, GENRE_LABELS, MONETIZATION_LABELS } from '@egf/core';
 import { api } from '../lib/api';
 import { EFFORT_LABELS } from '../lib/labels';
 import { Badge, Card, ErrorNote, Field, ScoreBar, SectionTitle, Spinner } from '../components/ui';
+import { useConfirm } from '../components/ConfirmDialog';
 
 const RISK_TONES = { low: 'good', medium: 'warn', high: 'bad', critical: 'bad' } as const;
 
@@ -55,6 +56,7 @@ function IdeaCard({
   onDelete?: (id: string) => void;
   onPromote: (idea: GameIdea) => void;
 }): React.JSX.Element {
+  const confirmDialog = useConfirm();
   const s = idea.scores;
   return (
     <Card className="space-y-4">
@@ -166,7 +168,12 @@ function IdeaCard({
           <button
             className="btn-ghost ml-auto text-bad"
             onClick={() => {
-              if (window.confirm(`Idee „${idea.title}" wirklich löschen?`)) onDelete(idea.id);
+              void confirmDialog({
+                title: 'Idee löschen?',
+                message: `„${idea.title}" wird dauerhaft gelöscht.`,
+                confirmLabel: 'Löschen',
+                danger: true,
+              }).then((ok) => ok && onDelete(idea.id));
             }}
           >
             <Trash2 className="h-4 w-4" /> Löschen
